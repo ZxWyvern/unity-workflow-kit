@@ -4,7 +4,7 @@
 
 Instead of a generic "be a senior Unity developer" prompt, this kit makes an AI inspect your actual project (scenes, prefabs, packages, source, tests) and produce a small **workflow pack** in `docs/ai-workflow/`. Future AI sessions read that pack and know your real entry scene, your subsystems, what is protected, what has been verified, and what has not.
 
-🇮🇩 [Baca dalam Bahasa Indonesia](README.id.md)
+[Baca dalam Bahasa Indonesia](README.id.md)
 
 > Not affiliated with or endorsed by Unity Technologies. "Unity" is a trademark of its owner.
 
