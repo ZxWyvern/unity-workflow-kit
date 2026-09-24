@@ -4,7 +4,7 @@
 
 Bukan prompt generik "jadilah senior Unity developer". Kit ini membuat AI memeriksa proyek Anda (scene, prefab, package, source, test) lalu menghasilkan **workflow pack** kecil di `docs/ai-workflow/`. Sesi AI berikutnya membaca pack itu, jadi tahu scene utama Anda, subsistemnya, area yang dilindungi, apa yang sudah diverifikasi, dan apa yang belum.
 
-🇬🇧 [Read in English](README.md)
+[Read in English](README.md)
 
 > Tidak berafiliasi dengan Unity Technologies. "Unity" adalah merek dagang pemiliknya.
 
