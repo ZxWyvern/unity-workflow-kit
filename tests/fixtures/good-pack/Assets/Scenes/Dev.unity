@@ -1,0 +1,5 @@
+%YAML 1.1
+--- !u!114 &1
+MonoBehaviour:
+  m_Script: {fileID: 11500000, guid: 00000000000000000000000000000001, type: 3}
+  _player: {fileID: 2}

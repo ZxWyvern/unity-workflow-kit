@@ -1,0 +1,27 @@
+{
+  "format": "unity-project-workflow-index",
+  "format_version": "1.2",
+  "workflow_version": "1",
+  "profile": "standard",
+  "project": {"root": ".", "product_type": "fixture", "tier": "small"},
+  "snapshot": {"observed_date": "2026-09-24", "source_kind": "fixture", "revision": null, "dirty": null, "completeness_limits": ["no version control", "no design document"]},
+  "documents": [
+    {"id": "doc-readme", "path": "docs/ai-workflow/README.md", "path_state": "generated", "purpose": "install and use"},
+    {"id": "doc-agent", "path": "docs/ai-workflow/agent.md", "path_state": "generated", "purpose": "portable agent profile"},
+    {"id": "doc-context", "path": "docs/ai-workflow/project-context.md", "path_state": "generated", "purpose": "canonical facts"},
+    {"id": "doc-workflow", "path": "docs/ai-workflow/development-workflow.md", "path_state": "generated", "purpose": "routes and increments"},
+    {"id": "doc-matrix", "path": "docs/ai-workflow/validation-matrix.md", "path_state": "generated", "purpose": "checks and status"},
+    {"id": "doc-handoff", "path": "docs/ai-workflow/session-handoff.md", "path_state": "generated", "purpose": "current session state"}
+  ],
+  "entry_points": [
+    {"id": "entry-dev", "path": "Assets/Scenes/Dev.unity", "path_state": "existing", "kind": "development_scene", "certainty": "provisional", "claim_ids": ["C-002"]}
+  ],
+  "stack": [
+    {"name": "Unity Editor (declared)", "version": "6000.0.0f1", "claim_ids": ["C-001"]}
+  ],
+  "task_routes": [
+    {"id": "R-001", "title": "Health and damage change", "document": "development-workflow.md", "check_ids": ["V-002", "V-003"]},
+    {"id": "R-002", "title": "Scene wiring", "document": "development-workflow.md", "check_ids": ["V-001"]}
+  ],
+  "refresh_triggers": ["package_or_unity_version_changed", "entry_path_changed", "source_changed"]
+}

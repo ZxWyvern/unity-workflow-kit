@@ -1,0 +1,21 @@
+{
+  "format": "unity-project-workflow-index",
+  "format_version": "1.2",
+  "workflow_version": "1",
+  "profile": "standard",
+  "project": {"root": ".", "product_type": null, "tier": null},
+  "snapshot": {"observed_date": null, "source_kind": null, "revision": null, "dirty": null, "completeness_limits": []},
+  "documents": [
+    {"id": "doc-context", "path": "REPLACE_ME", "path_state": "generated", "purpose": "canonical facts"}
+  ],
+  "entry_points": [
+    {"id": "entry-main", "path": "REPLACE_ME", "path_state": "existing", "kind": "development_scene", "certainty": "provisional", "claim_ids": []}
+  ],
+  "stack": [
+    {"name": "REPLACE_ME", "version": null, "note": "version unknown until observed", "claim_ids": []}
+  ],
+  "task_routes": [
+    {"id": "R-001", "title": "REPLACE_ME", "document": "development-workflow.md", "check_ids": []}
+  ],
+  "refresh_triggers": []
+}
