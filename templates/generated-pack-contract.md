@@ -15,7 +15,7 @@ Defines the project-specific pack produced by the generator. `tools/validate_pac
 | `README.md` | no | yes | yes |
 | `development-workflow.md` | no | yes | yes |
 | `contracts/*.md` | no | no | only relevant ones |
-| `tools/packlib.py`, `validate_pack.py`, `suspects.py` | copied | copied | copied |
+| `tools/packlib.py`, `validate_pack.py`, `suspects.py`, `context.py` | copied | copied | copied |
 
 ## Root `AGENTS.md`
 
@@ -29,6 +29,8 @@ Startup rules, scope, authority, invariants, routing, tool limits, validation ho
 
 Point to supporting docs instead of duplicating them. If integration is unsafe or ambiguous, emit a proposed patch and mark activation pending.
 
+Aim for 20 lines in this section. Route sessions to `agent.md`; do not instruct them to read the entire pack on every task. Applicable root/nested repository instructions are always read in full.
+
 ## `README.md` (Standard, Extended)
 
 What was generated; inspected snapshot and coverage limits; profile and why; file-to-purpose map; activation and merge instructions; copyable start and resume requests using real paths; host loading behavior when verified; `index.json` is navigation-only; validator result (executed or not) separate from game checks.
@@ -37,9 +39,18 @@ What was generated; inspected snapshot and coverage limits; profile and why; fil
 
 Real startup path, relevant systems, sources of truth, architecture policy, protected areas by `P-###`, operating loop, evidence and validation behavior. In Compact it also holds routes and increments.
 
+Aim for 80 lines. Include the actual pack paths in this loading procedure:
+
+1. Read applicable repository instructions and this file. Read `session-handoff.md` when resuming.
+2. Run `python <pack_dir>/tools/context.py <repo_root> --pack <pack_dir>` to list routes, then add `--route R-###` for the selected route (repeat for a task spanning routes).
+3. Read source and conditional contracts relevant to that task; check claim freshness first. If no route matches, trace the requested path and add a grounded route instead of forcing a match.
+4. If Python is unavailable, use `index.json` and read the selected route, referenced claims and their `deps:`, protected areas, and matrix checks directly. Do not load every document by default.
+
+`context.py` caps output at 16,000 characters by default. It exits with an explanation instead of silently truncating; split routes, read canonical blocks, or raise `--max-chars` when correctness needs more context. Characters are not an exact token count.
+
 ## `project-context.md`
 
-Facts only. Canonical sections, in this order:
+Facts only. Canonical sections, in this order. Short sections may be one line; do not repeat claims to fill them. Record budget and inspected scope in provenance. Keep IDs stable during refresh.
 
 1. provenance and coverage
 2. pack profile and tier (with observed counts)

@@ -1,4 +1,4 @@
-"""Shared helpers for the workflow-pack tools (v1.2.1). Standard library only."""
+"""Shared helpers for the workflow-pack tools (v1.3.0). Standard library only."""
 import re
 from pathlib import Path
 

@@ -1,147 +1,113 @@
 # Unity Workflow Agent Generator
 
-**Biarkan AI coding agent Anda menulis workflow yang spesifik dan berbasis bukti untuk proyek Unity *Anda*, langsung dari file aslinya.**
+Beri coding agent panduan kecil yang spesifik untuk proyek Unity Anda: mulai dari mana, file mana yang memiliki state, apa yang harus dijaga, dan cara memeriksa hasilnya.
 
-Bukan prompt generik "jadilah senior Unity developer". Kit ini membuat AI memeriksa proyek Anda (scene, prefab, package, source, test) lalu menghasilkan **workflow pack** kecil di `docs/ai-workflow/`. Sesi AI berikutnya membaca pack itu, jadi tahu scene utama Anda, subsistemnya, area yang dilindungi, apa yang sudah diverifikasi, dan apa yang belum.
+[![Proyek Unity](https://img.shields.io/badge/Unity-181B23?style=for-the-badge&logo=unity&logoColor=FFFFFF)](https://unity.com/)
+[![Helper Python 3.9+](https://img.shields.io/badge/Python_3.9%2B-181B23?style=for-the-badge&logo=python&logoColor=FFD43B)](https://www.python.org/)
+[![Dokumen workflow Markdown](https://img.shields.io/badge/Markdown-181B23?style=for-the-badge&logo=markdown&logoColor=FFFFFF)](https://daringfireball.net/projects/markdown/)
+[![Pelacakan perubahan Git](https://img.shields.io/badge/Git-181B23?style=for-the-badge&logo=git&logoColor=F05032)](https://git-scm.com/)
+[![CI GitHub Actions](https://img.shields.io/badge/GitHub_Actions-181B23?style=for-the-badge&logo=githubactions&logoColor=58A6FF)](https://github.com/features/actions)
 
-[Read in English](README.md)
+[English](README.md) · [Panduan lengkap](docs/USAGE.md) · [Kontribusi](CONTRIBUTING.md)
 
-> Tidak berafiliasi dengan Unity Technologies. "Unity" adalah merek dagang pemiliknya.
+**v1.3.0 beta.** Tool Python lokal sudah diuji. Kualitas generasi dan biaya token lintas proyek serta host AI masih membutuhkan laporan penggunaan nyata. Tidak berafiliasi dengan Unity Technologies.
 
-**Status: v1.2.1, beta.** Tool-nya sudah punya self-test, tetapi generator ini belum divalidasi pada banyak proyek nyata. Laporan dari run sungguhan adalah kontribusi paling berguna (lihat template issue *Run report*).
+## Mulai dengan satu prompt
 
-## Kenapa dipakai
+1. Unduh ZIP repositori dan ekstrak di proyek Unity sebagai `_ai-generator/`, di luar `Assets/`. Folder di samping proyek juga bisa; sesuaikan path pada prompt.
+2. Buka proyek Unity melalui coding agent yang dapat membaca file lokal.
+3. Tempel:
 
-- **Berdasar proyek, bukan generik.** Setiap klaim penting punya label bukti (`source_verified`, `serialized_verified`, `execution_verified`, `inferred`, `proposed`, `unknown`) dan path ke kode atau asetnya.
-- **Jujur soal verifikasi.** "Bisa compile", "scene sudah terpasang", dan "sudah dimainkan dan jalan" adalah klaim yang berbeda dan tidak pernah dicampur.
-- **Aman secara default.** Proses generate hanya menulis dokumentasi. Tidak mengubah gameplay, upgrade package, atau menyentuh save.
-- **Tetap segar.** Mode Refresh menghitung klaim mana yang basi setelah kode berubah, tanpa menulis ulang semuanya.
-- **Dicek skrip.** Validator menangkap ID rusak, path palsu, bukti yang hilang, dan status yang bertentangan.
-
-## Hasilnya
-
+```text
+Baca _ai-generator/ENTRYPOINT.md dan siapkan workflow untuk proyek Unity ini.
 ```
-AGENTS.md                      <- ditambah satu section pendek (di antara marker)
+
+Agent menemukan proyek, membuat pack Compact, atau memperbarui pack yang sudah ada. Arsitektur mengikuti proyek Anda. Periksa diff lalu commit pack dan bagian bertanda di `AGENTS.md`.
+
+Helper memakai Python 3.9+ dan standard library, tanpa dependensi tambahan. Kalau Python tidak tersedia, agent mengikuti prosedur manual dan menyatakan validator belum dijalankan. Tambahkan `_ai-generator/` ke `.gitignore` proyek jika kit tidak ingin di-commit.
+
+**Chat yang hanya menerima upload:** lampirkan export proyek dan [bundle lengkap](dist/Unity_Workflow_Agent_Generator_bundle.md), lalu minta penyiapan workflow. Bundle menyertakan source tool sehingga konteks masuk lebih besar. Untuk agent dengan akses filesystem, gunakan folder kit.
+
+## Cara menghemat konteks
+
+- Baca entrypoint dan tiga referensi wajib; modul lain dibaca sesuai kebutuhan.
+- Mulai dari maksimal 2 subsistem, 1 alur menyeluruh, 3 temuan, 3 route, dan 1 langkah berikutnya. Perluas jika dependensi nyata membutuhkan pemeriksaan.
+- Targetkan instruksi startup sekitar 20 baris dan `agent.md` sekitar 80 baris.
+- Ambil route, dependensi bukti, check, dan area terlindungi melalui `context.py`. Seluruh pack tidak perlu masuk ke konteks model.
+- Refresh klaim yang terdampak perubahan; biarkan isi lain tetap.
+
+Ini mekanisme pembatas konteks, bukan jaminan persentase penghematan token. Biaya aktual bergantung pada agent, tugas, dan proyek. Instruksi yang berlaku serta verifikasi yang diperlukan tetap harus dibaca dan dijalankan sesuai izin.
+
+## File yang dihasilkan
+
+`AGENTS.md` mendapat bagian startup dengan marker; aturan yang sudah ada dipertahankan.
+
+```text
 docs/ai-workflow/
-  agent.md                     peran + operating loop untuk sesi AI berikutnya
-  project-context.md           fakta: stack, entry path, subsistem, temuan, area terlindungi
-  development-workflow.md      route tugas + increment berikutnya
-  validation-matrix.md         daftar check dan statusnya (satu-satunya tempat status)
-  session-handoff.md           kondisi terkini
-  index.json                   indeks navigasi
-  README.md                    cara pakai pack
-  tools/                       validate_pack.py, suspects.py, packlib.py
+  agent.md                      prosedur, route tugas, langkah berikutnya
+  project-context.md            klaim, area terlindungi, temuan, cakupan
+  validation-matrix.md          check dan hasilnya
+  session-handoff.md            pekerjaan saat ini dan langkah selanjutnya
+  index.json                    navigasi
+  tools/                        empat helper Python kecil
 ```
 
-Proyek kecil mendapat profil **Compact** (file lebih sedikit). AI memilih profil terkecil yang cukup.
+Standard menambahkan README dan file workflow terpisah jika diperlukan. Extended menambahkan kontrak khusus yang relevan. Bagian tertentu dari repositori besar tetap bisa memakai Compact.
 
-## Mulai cepat (sekitar 5 menit)
+Generasi menulis dokumentasi workflow dan helper. Implementasi gameplay membutuhkan permintaan terpisah. Keberadaan source, wiring scene, dan hasil runtime dicatat sebagai klaim berbeda.
 
-**Yang dibutuhkan:** AI yang bisa membaca folder proyek Unity Anda (tool coding agentic atau asisten IDE), atau kemampuan meng-upload proyek sebagai zip.
-
-**1. Ambil kit-nya.** Pilih salah satu:
-
-- Termudah: unduh **bundle** terbaru dari [Releases](../../releases), atau buka [`dist/Unity_Workflow_Agent_Generator_bundle.md`](dist/Unity_Workflow_Agent_Generator_bundle.md) lalu klik *Copy raw file*. Isinya satu file yang memuat semuanya.
-- Atau unduh ZIP repositori (*Code → Download ZIP*) dan ekstrak **di samping** proyek Anda, bukan di dalam `Assets/` (Unity akan meng-import-nya).
-
-**2. Beri AI akses ke proyek.**
-
-- Tool agentic di folder proyek: buka foldernya, lalu pastikan kit bisa dibaca (letakkan di luar `Assets/`, misalnya `../unity-workflow-agent-generator`, atau di root proyek dengan nama `_ai-generator/`).
-- AI berbasis chat: zip proyek **tanpa** `Library/`, `Temp/`, `Obj/`, `Logs/`, `UserSettings/`, dan `Builds/`, lalu upload zip dan file bundle.
-
-**3. Tempel prompt ini** (boleh Anda tulis dalam bahasa apa pun, isi kit tetap Inggris):
+## Pemakaian harian
 
 ```text
-Read ENTRYPOINT.md in the generator kit and every module it references. Use Generate mode.
-Inspect this Unity project, create the project-specific workflow pack, run the validator,
-and report what you verified, what you could not verify, and the next executable increment.
+Baca AGENTS.md dan docs/ai-workflow/agent.md. Implementasikan: <tugas Anda>.
+Muat route dan dependensi yang relevan saja. Laporkan check yang dijalankan dan belum dijalankan.
 ```
 
-(Mode bundle: lampirkan atau tempel file bundle, lalu tulis "The generator is the attached bundle" sebagai ganti menyebut `ENTRYPOINT.md`.)
+Agent dapat memilih konteks melalui:
 
-**4. Tinjau hasilnya.** Periksa diff, terutama section yang ditambahkan ke `AGENTS.md`, lalu commit `docs/ai-workflow/`.
+```bash
+python docs/ai-workflow/tools/context.py .
+python docs/ai-workflow/tools/context.py . --route R-001
+```
 
-## Tambahan prompt (opsional)
+Gunakan ID dari pack Anda. Ulangi `--route` jika tugas mencakup beberapa route. Batas keluaran default adalah 16.000 karakter; jika terlalu besar, tool berhenti dengan penjelasan, tanpa memotong bukti diam-diam. Baca blok aslinya atau naikkan `--max-chars` jika diperlukan.
 
-Tambahkan baris berikut ke prompt di atas sesuai kebutuhan.
+## Proyek besar dan tim
+
+Tambahkan fokus:
 
 ```text
-Focus: finish the playable demo. Development scene: Assets/Scenes/Dev.unity.
-```
-```text
-Target: Android mid-range, 60 FPS, 2 GB memory budget.
-```
-```text
-architecture_policy = toward: Clean Architecture with VContainer, no singletons, asmdef layers Domain/Application/Infrastructure/Presentation.
+Focus: inventory save/load. Unity root: games/client.
 ```
 
-Tanpa `architecture_policy`, pack akan **mengikuti** konvensi yang sudah ada di proyek dan tidak mengusulkan rewrite.
+Agent mencari path dulu, membaca subsistem terkait beserta dependensinya, dan mencatat sisanya sebagai belum diperiksa. Cache dan kumpulan aset vendor tidak ikut pencarian luas. Jika ada beberapa root Unity, pilih berdasarkan tugas atau tentukan root secara eksplisit.
 
-## Memakai pack sehari-hari
+| Pengaturan opsional | Kegunaan |
+|---|---|
+| `budget = lean` | Default, investigasi terfokus |
+| `budget = balanced` | Cakupan sistem lebih luas |
+| `budget = deep` | Verifikasi lebih dalam pada jalur terpilih; perluasan cakupan disebutkan eksplisit |
+| `architecture_policy = toward: <target>` | Target eksplisit untuk kode baru atau yang disentuh |
 
-Awali setiap tugas dengan:
-
-```text
-Read AGENTS.md and docs/ai-workflow/agent.md. Then implement: <tugas Anda>.
-Follow the operating loop. At the end, list checks run vs not run.
-```
-
-Agent menelusuri jalur kode yang ada dulu, membuat perubahan lengkap terkecil, mengintegrasikannya di scene sungguhan, memverifikasi sesuai risiko, dan melapor jujur. Ia tidak akan menandai check `passed` tanpa bukti.
-
-## Menjaga pack tetap segar
-
-Setelah perubahan besar:
+Setelah merge atau perubahan besar:
 
 ```text
-Read ENTRYPOINT.md and use Refresh mode. Use docs/ai-workflow/tools/suspects.py against the
-revision recorded in the pack, revalidate only suspect claims plus the handoff target,
-and update the pack without rewriting unaffected sections.
+Baca _ai-generator/ENTRYPOINT.md dan refresh workflow pack yang sudah ada.
 ```
 
-Alatnya juga bisa dijalankan sendiri (Python 3.9+, tanpa dependensi):
+Untuk CI tim:
 
 ```bash
 python docs/ai-workflow/tools/validate_pack.py . docs/ai-workflow
-python docs/ai-workflow/tools/suspects.py . --pack docs/ai-workflow --since HEAD~5
 ```
 
-## FAQ
+Validator memeriksa struktur dan konsistensi, bukan membuktikan gameplay benar. Refresh Git mencakup file baru yang belum di-track dan tidak di-ignore. Snapshot dirty serta perubahan environment tetap perlu diperiksa eksplisit.
 
-**Apakah mengubah game saya?** Tidak. Secara default hanya menulis dokumentasi dan menyalin tiga tool kecil ke `docs/ai-workflow/tools/`. Implementasi adalah permintaan terpisah yang eksplisit.
-
-**Cocok dengan AI apa?** Netral terhadap tool: AI apa pun yang bisa membaca file proyek. Belum di-benchmark lintas tool, jadi silakan [buka issue](../../issues) dengan hasil Anda.
-
-**Apakah pack dijamin benar?** Tidak. Validator memeriksa mekanik (ID, format, apakah path dan simbol yang dikutip benar-benar ada). Ia tidak bisa membuktikan interpretasinya benar. Yang belum terverifikasi diberi label `unknown`, bukan ditebak.
-
-**Proyek besar?** AI membatasi kedalaman (default 6 subsistem, 10 temuan, 8 route, 5 increment) dan mencatat sisanya sebagai *not inspected*. Tambahkan `Focus:` untuk mengarahkan.
-
-**Tool editor, package, atau proyek non-game?** Bisa. Profil Compact dan kontrak editor-tooling mencakupnya.
-
-**Bahasa?** Kit dan pack berbahasa Inggris karena validator bergantung pada nama field berbahasa Inggris. Anda tetap bisa berbicara ke AI dalam bahasa apa pun.
-
-Detail lebih lanjut: [docs/USAGE.md](docs/USAGE.md) (Inggris).
-
-## Struktur repositori
-
-| Path | Fungsi |
-|---|---|
-| `ENTRYPOINT.md`, `core/` | Aturan generator (otoritatif) |
-| `templates/` | Kontrak output dan contoh index |
-| `hosts/` | Catatan lokasi instruksi tiap tool AI (verifikasi dulu) |
-| `tools/` | `validate_pack.py`, `suspects.py`, `packlib.py`, `bundle.py` |
-| `dist/` | Bundle satu file untuk paste atau upload |
-| `tests/` | Self-test dan fixture fiktif (tidak pernah dibaca saat generate) |
-| `docs/` | Dokumentasi untuk manusia |
-
-## Pengembangan
+## Pengembangan kit
 
 ```bash
-python tests/run_tests.py     # jalankan self-test
-python tools/bundle.py        # bangun ulang dist/ setelah mengubah ENTRYPOINT, core/, templates/, hosts/, atau tools/
+python tests/run_tests.py
+python tools/bundle.py
 ```
 
-Lihat [CONTRIBUTING.md](CONTRIBUTING.md). Perubahan pada `core/` sebaiknya disertai fixture atau test case.
-
-## Lisensi
-
-[MIT](LICENSE)
+CI dikonfigurasi untuk Python 3.9 dan 3.12 di Linux serta Windows, termasuk pemeriksaan bundle. Lihat [CHANGELOG.md](CHANGELOG.md) untuk migrasi dan [lisensi MIT](LICENSE).

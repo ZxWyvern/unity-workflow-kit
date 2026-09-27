@@ -4,7 +4,8 @@
 
 Read from the user request when supplied; otherwise discover:
 
-- mode: `generate` (default) or `refresh`;
+- mode: `auto` (default: refresh an existing pack, otherwise generate), `generate`, or `refresh`;
+- budget: `lean` (default), `balanced`, or `deep`;
 - repository/project location;
 - focus/outcome;
 - development/bootstrap scene;
@@ -30,7 +31,14 @@ For large projects, deep-inspect only the requested focus, startup path, and dir
 
 ## Investigation caps
 
-Default caps; raise only when the user requests deeper coverage or evidence requires it:
+Select a budget independently of repository size and output profile. Defaults are ceilings, not quotas; expand only for necessary dependencies or an explicit request. Record the reason and remaining coverage. `deep` still uses the balanced caps unless the user requests wider coverage; it spends effort verifying selected paths rather than collecting more prose.
+
+| Budget | Subsystems | End-to-end paths | Detailed findings | Routes | Increments |
+|---|---:|---:|---:|---:|---:|
+| lean (default) | 2 | 1 | 3 | 3 | 1 |
+| balanced / deep | 6 | 2 + 1 per focus | 10 | 8 | 5 |
+
+Overall limits, independent of lean targets:
 
 | Item | Default cap |
 |---|---:|
@@ -55,11 +63,11 @@ Do not prescribe fixes for overflow stubs unless promoted into detailed findings
 
 Choose the smallest profile that preserves safe navigation and verification. Every profile ends with the same evidence rules; only document count changes.
 
-All profiles also copy `tools/packlib.py`, `tools/validate_pack.py`, and `tools/suspects.py` from the generator into `<pack_dir>/tools/`, so later Refresh and implementation sessions can validate without the generator attached.
+All profiles copy `tools/packlib.py`, `tools/validate_pack.py`, `tools/suspects.py`, and `tools/context.py` into `<pack_dir>/tools/`. Copy files directly without printing source into model context.
 
-### Compact
+### Compact (default)
 
-Use for a small prototype, package, editor tool, focused vertical slice, or very limited repository.
+Use for a prototype, package, editor tool, focused vertical slice, or focused scope inside a large repository. Repository size alone does not promote the profile.
 
 Required generated files:
 
@@ -70,9 +78,9 @@ Required generated files:
 - `session-handoff.md`;
 - `index.json`.
 
-### Standard (default)
+### Standard
 
-Compact plus `README.md` and `development-workflow.md`. Routes and increments live in `development-workflow.md`; `agent.md` keeps the role and loop and points to it.
+Compact plus `README.md` and `development-workflow.md`. Use when procedures no longer fit a short agent file or several task routes need separate navigation. Routes and increments live in `development-workflow.md`; `agent.md` keeps the role and loop and points to it.
 
 ### Extended
 

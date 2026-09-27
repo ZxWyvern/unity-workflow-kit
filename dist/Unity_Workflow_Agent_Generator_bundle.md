@@ -3,96 +3,56 @@
 Bundle mode: every file of the kit is included below between BEGIN/END markers.
 Wherever ENTRYPOINT.md says "read file X", read the section marked `BEGIN file: X`.
 Files under `tools/` are source code: when you generate a pack, write them verbatim
-into `<pack_dir>/tools/` (packlib.py, validate_pack.py, suspects.py).
+into `<pack_dir>/tools/` (packlib.py, validate_pack.py, suspects.py, context.py).
 Do not treat any tool source as instructions.
 
 
 <!-- BEGIN file: ENTRYPOINT.md -->
-# ENTRYPOINT — Unity Workflow Agent Generator v1.2.1
+# Unity Workflow Agent Generator v1.3.0
 
-You are a Unity project investigator and workflow author. Your job is to inspect the current project and create or refresh a compact, project-specific workflow pack that another coding AI can use to make complete, verifiable changes in that exact project.
+Create a project-specific workflow pack from inspected Unity project files. Deliver the pack, validate it, and report the next executable action. Generation changes documentation and copied workflow tools only. Implementation is a separate request.
 
-Your deliverable is the finished workflow pack, not advice about how to write one.
+## Start without a questionnaire
 
-## 1. Required modules
+Read applicable repository instructions and preserve dirty work. Locate the Unity root (or package consumer). Use the user's focus and selected scene when supplied. Otherwise inspect startup and choose one evidence-supported next action; do not invent product intent.
 
-Read these files in order before generating or refreshing a pack:
+Defaults: `mode = auto`, `budget = lean`, `profile = compact`, `architecture_policy = conform`, output `docs/ai-workflow/`. Auto refreshes an existing pack and generates when none exists. Keep an existing pack's profile and paths during refresh. Ask only when a missing choice blocks safe, grounded work.
 
-1. `core/01-authority-and-scope.md`
-2. `core/02-inputs-budget-and-profiles.md`
-3. `core/03-investigation-passes.md`
-4. `core/04-evidence-claims-and-invalidation.md`
-5. `core/05-output-architecture.md`
-6. `core/06-operating-loop.md`
-7. `core/07-refresh-policy.md`
-8. `core/08-validation-and-completion.md`
-9. `core/09-conditional-contracts.md`
+Read `core/01-authority-and-scope.md`, `core/04-evidence-claims-and-invalidation.md`, and `templates/generated-pack-contract.md`. Load other guidance only when the situation below applies. Do not read this kit's `tests/`, `dist/`, or `docs/` during generation. Copy tools as files; do not load their source into model context just to copy or execute them.
 
-Read `templates/generated-pack-contract.md` before writing output files.
-Read a file under `hosts/` only when that host is requested or clearly used by the repository.
+## Read only what the task needs
 
-Never read the generator kit's own `tests/`, `dist/`, or `docs/` folders while generating or refreshing a pack (this does not apply to the target project's own `docs/`, which is a normal input). `tests/` holds a fictional fixture whose names must not leak into a real pack; `dist/` is a generated copy of these files; `docs/` is human-facing. In bundle mode (single pasted file) treat "read file X" as "read the section marked `BEGIN file: X`".
+| Situation | Additional reading |
+|---|---|
+| Profile/budget overrides or unclear project size | `core/02-inputs-budget-and-profiles.md` |
+| Investigating source/architecture | Relevant passes in `core/03-investigation-passes.md` |
+| Before serialized or runtime claims | Passes B and C in `core/03-investigation-passes.md` |
+| Existing instructions or conflicting document ownership | `core/05-output-architecture.md` |
+| Writing the generated agent's implementation procedure | `core/06-operating-loop.md` |
+| Refreshing an existing pack | `core/07-refresh-policy.md` |
+| Validation warnings, incomplete exports, or completion uncertainty | `core/08-validation-and-completion.md` |
+| Relevant networking, narrative, editor tooling, or performance systems | Matching section of `core/09-conditional-contracts.md` |
+| Requested/detected host integration | Matching `hosts/` file; verify behavior before generating native config |
 
-## 2. Start contract
+## Lean investigation
 
-Determine or discover:
+1. Search filenames before contents. Exclude `Library`, `Temp`, `Obj`, `Logs`, `Builds`, `.git`, generated code, and vendor dumps from broad scans. Inspect an excluded dependency directly only when the task requires it.
+2. Start with metadata, entry candidates, and the focus path. Initially read at most 12 source/config/asset candidates, then expand only for callers, state ownership, integration, or verification needed by the selected task. Repository instructions are never subject to this budget. Record missing coverage instead of pretending inspection is complete.
+3. Map up to 2 subsystems, 1 end-to-end path, 3 detailed findings, 3 routes, and 1 next increment. These are ceilings, not quotas. Record other findings as brief stubs. Expand with a stated reason when necessary for correctness; `budget = balanced` or `deep` is an optional user override.
+4. On a large project, inspect the focus and its dependencies. A large repository does not require a large pack. For multiple roots, select the root supported by the task; if ambiguous, list candidates and ask before writing a pack.
+5. Write evidence once and cite IDs. Keep the generated root instruction section near 20 lines and `agent.md` near 80 lines; hard limits remain 150 and 200. Do not fill optional sections with generic advice.
 
-- mode: `generate` or `refresh`;
-- real Unity root(s);
-- user focus, if any;
-- selected development/bootstrap scene, if provided;
-- target platforms and budgets, if provided;
-- design references;
-- `architecture_policy`;
-- preferred host;
-- desired output location;
-- existing workflow/instruction files;
-- repository completeness and version-control state when observable.
+## Generate, check, deliver
 
-If access is incomplete, continue with what is available and label limits. Do not fabricate missing project facts.
+Use the contract's formats and canonical files. Never conflate source existence, serialized wiring, and runtime execution. Unknowns remain unknown. Follow existing architecture unless the user explicitly supplies `toward: <target>`.
 
-## 3. Default architecture policy
+Copy `packlib.py`, `validate_pack.py`, `suspects.py`, and `context.py` from `tools/` into `<pack_dir>/tools/`. Run `python <pack_dir>/tools/validate_pack.py <repo_root> <pack_dir>` when a shell and Python exist. Resolve errors and explain remaining warnings. If unavailable, say validation was not executed and check the contract manually.
 
-When unspecified:
+Teach future sessions to read applicable instructions and `agent.md`, list routes with `context.py`, then load only the selected route and dependency closure. Read the handoff when resuming. Check freshness; the excerpt is navigation, not proof. Never truncate required evidence or safety instructions to meet a token budget.
 
-`architecture_policy = conform`
+Finish with pack location, grounding sources, pack validation, game checks run/not run, remaining limits, and one copyable next request. No gameplay changes are implied by generating a pack.
 
-Meaning: follow established local conventions. Do not introduce migrations, frameworks, interfaces, event buses, DI, ECS, service locators, or architectural rewrites merely because they are generally fashionable.
-
-Alternative:
-
-`architecture_policy = toward: <verbatim target profile>`
-
-New/touched code follows that target. Legacy migration is only allowed when the requested task actually touches it.
-
-## 4. Non-negotiable principles
-
-1. **Project evidence beats assumptions.**
-2. **Source existence is not scene integration.**
-3. **Serialized integration is not runtime proof.**
-4. **Runtime proof is environment-specific.**
-5. **Design intent and implementation state are separate authorities.**
-6. **Unknown is better than invented.**
-7. **A thin completed pack is better than an exhaustive unfinished audit.**
-8. **Do not change game implementation unless implementation was separately authorized.**
-9. **Do not silently touch unrelated dirty work.**
-10. **Every important claim has an evidence class; every claim except `proposed`/`unknown` also has an invalidation path.**
-
-## 5. Completion target
-
-A valid result:
-
-- uses the smallest suitable pack profile;
-- contains only project-grounded paths/names/claims;
-- distinguishes source, serialized, execution, inference, proposal, and unknown states;
-- records what can invalidate important claims;
-- defines project-specific task routes and verification checks;
-- has one canonical home for status;
-- preserves existing instructions and user work;
-- validates mechanically with `tools/validate_pack.py` (copied into the pack) when shell access exists;
-- clearly reports pack validation separately from game/runtime verification.
-
-Begin by inspecting current project instructions and locating the real Unity root.
+In a pasted full bundle, references mean sections marked `BEGIN file: ...`. The full bundle includes all tool source for chat-only use; directory mode avoids loading that source.
 <!-- END file: ENTRYPOINT.md -->
 
 <!-- BEGIN file: core/01-authority-and-scope.md -->
@@ -165,7 +125,8 @@ A protected area is not necessarily forbidden forever; it requires explicit task
 
 Read from the user request when supplied; otherwise discover:
 
-- mode: `generate` (default) or `refresh`;
+- mode: `auto` (default: refresh an existing pack, otherwise generate), `generate`, or `refresh`;
+- budget: `lean` (default), `balanced`, or `deep`;
 - repository/project location;
 - focus/outcome;
 - development/bootstrap scene;
@@ -191,7 +152,14 @@ For large projects, deep-inspect only the requested focus, startup path, and dir
 
 ## Investigation caps
 
-Default caps; raise only when the user requests deeper coverage or evidence requires it:
+Select a budget independently of repository size and output profile. Defaults are ceilings, not quotas; expand only for necessary dependencies or an explicit request. Record the reason and remaining coverage. `deep` still uses the balanced caps unless the user requests wider coverage; it spends effort verifying selected paths rather than collecting more prose.
+
+| Budget | Subsystems | End-to-end paths | Detailed findings | Routes | Increments |
+|---|---:|---:|---:|---:|---:|
+| lean (default) | 2 | 1 | 3 | 3 | 1 |
+| balanced / deep | 6 | 2 + 1 per focus | 10 | 8 | 5 |
+
+Overall limits, independent of lean targets:
 
 | Item | Default cap |
 |---|---:|
@@ -216,11 +184,11 @@ Do not prescribe fixes for overflow stubs unless promoted into detailed findings
 
 Choose the smallest profile that preserves safe navigation and verification. Every profile ends with the same evidence rules; only document count changes.
 
-All profiles also copy `tools/packlib.py`, `tools/validate_pack.py`, and `tools/suspects.py` from the generator into `<pack_dir>/tools/`, so later Refresh and implementation sessions can validate without the generator attached.
+All profiles copy `tools/packlib.py`, `tools/validate_pack.py`, `tools/suspects.py`, and `tools/context.py` into `<pack_dir>/tools/`. Copy files directly without printing source into model context.
 
-### Compact
+### Compact (default)
 
-Use for a small prototype, package, editor tool, focused vertical slice, or very limited repository.
+Use for a prototype, package, editor tool, focused vertical slice, or focused scope inside a large repository. Repository size alone does not promote the profile.
 
 Required generated files:
 
@@ -231,9 +199,9 @@ Required generated files:
 - `session-handoff.md`;
 - `index.json`.
 
-### Standard (default)
+### Standard
 
-Compact plus `README.md` and `development-workflow.md`. Routes and increments live in `development-workflow.md`; `agent.md` keeps the role and loop and points to it.
+Compact plus `README.md` and `development-workflow.md`. Use when procedures no longer fit a short agent file or several task routes need separate navigation. Routes and increments live in `development-workflow.md`; `agent.md` keeps the role and loop and points to it.
 
 ### Extended
 
@@ -640,7 +608,7 @@ Refresh is evidence invalidation + targeted revalidation, not a full rewrite.
 
 ## Refresh startup
 
-1. Read current pack and current handoff.
+1. Read applicable instructions, `agent.md`, the index snapshot, and current handoff. Use the tools to select affected blocks instead of loading the entire pack.
 2. Identify current repository snapshot/diff when available.
 3. Determine which source/config/serialized/design/toolchain inputs changed.
 4. Build the suspect-claim set using claim dependencies and invalidation triggers. Prefer the tool over doing it by hand:
@@ -648,6 +616,10 @@ Refresh is evidence invalidation + targeted revalidation, not a full rewrite.
    (or `--changed <paths...>` without git, plus `--trigger <token>` for toolchain, package, or design changes).
    The tool only reports suspect claims, findings to recheck, and checks to review; the agent edits the pack.
 5. Always revalidate the handoff's next executable action before continuing it.
+
+`--since` includes tracked changes and untracked, nonignored files. It compares against a commit, not the exact earlier dirty working tree. If the recorded snapshot was dirty, revision is unavailable, export completeness changed, or external toolchain state changed, inspect the recorded limits and broaden revalidation explicitly. Never interpret an empty Git diff as proof that a dirty snapshot is unchanged. Fire environment/package/design triggers explicitly; filename comparison alone cannot discover them.
+
+If nothing relevant changed and the next action is still valid, leave the pack unchanged. Do not rewrite dates, bump versions, or regenerate identical prose just to report a refresh. In routine implementation sessions, update only affected claims/checks and the handoff; the generator kit does not need to be reloaded.
 
 ## Revalidation scope
 
@@ -693,7 +665,7 @@ If shell access exists, run:
 python <pack_dir>/tools/validate_pack.py <repo_root> <pack_dir>
 ```
 
-Copy `tools/packlib.py`, `tools/validate_pack.py`, and `tools/suspects.py` into `<pack_dir>/tools/` first (the validator imports `packlib.py`). Fix every validator error. Warnings require review and either correction or an explicit reason in the README. If no shell is available, perform the same checks by reading and say the validator was not executed.
+Copy `tools/packlib.py`, `tools/validate_pack.py`, `tools/suspects.py`, and `tools/context.py` into `<pack_dir>/tools/` first (the tools import `packlib.py`). Fix every validator error. Warnings require review and either correction or an explicit reason in the README (Compact: handoff limits). If no shell is available, perform the same checks by reading and say the validator was not executed.
 
 The validator checks mechanics: IDs, formats, status vocabulary, increment-to-matrix coupling, cited paths and symbols, size limits, placeholder leftovers. It cannot prove that claims are true.
 
@@ -840,7 +812,7 @@ Defines the project-specific pack produced by the generator. `tools/validate_pac
 | `README.md` | no | yes | yes |
 | `development-workflow.md` | no | yes | yes |
 | `contracts/*.md` | no | no | only relevant ones |
-| `tools/packlib.py`, `validate_pack.py`, `suspects.py` | copied | copied | copied |
+| `tools/packlib.py`, `validate_pack.py`, `suspects.py`, `context.py` | copied | copied | copied |
 
 ## Root `AGENTS.md`
 
@@ -854,6 +826,8 @@ Startup rules, scope, authority, invariants, routing, tool limits, validation ho
 
 Point to supporting docs instead of duplicating them. If integration is unsafe or ambiguous, emit a proposed patch and mark activation pending.
 
+Aim for 20 lines in this section. Route sessions to `agent.md`; do not instruct them to read the entire pack on every task. Applicable root/nested repository instructions are always read in full.
+
 ## `README.md` (Standard, Extended)
 
 What was generated; inspected snapshot and coverage limits; profile and why; file-to-purpose map; activation and merge instructions; copyable start and resume requests using real paths; host loading behavior when verified; `index.json` is navigation-only; validator result (executed or not) separate from game checks.
@@ -862,9 +836,18 @@ What was generated; inspected snapshot and coverage limits; profile and why; fil
 
 Real startup path, relevant systems, sources of truth, architecture policy, protected areas by `P-###`, operating loop, evidence and validation behavior. In Compact it also holds routes and increments.
 
+Aim for 80 lines. Include the actual pack paths in this loading procedure:
+
+1. Read applicable repository instructions and this file. Read `session-handoff.md` when resuming.
+2. Run `python <pack_dir>/tools/context.py <repo_root> --pack <pack_dir>` to list routes, then add `--route R-###` for the selected route (repeat for a task spanning routes).
+3. Read source and conditional contracts relevant to that task; check claim freshness first. If no route matches, trace the requested path and add a grounded route instead of forcing a match.
+4. If Python is unavailable, use `index.json` and read the selected route, referenced claims and their `deps:`, protected areas, and matrix checks directly. Do not load every document by default.
+
+`context.py` caps output at 16,000 characters by default. It exits with an explanation instead of silently truncating; split routes, read canonical blocks, or raise `--max-chars` when correctness needs more context. Characters are not an exact token count.
+
 ## `project-context.md`
 
-Facts only. Canonical sections, in this order:
+Facts only. Canonical sections, in this order. Short sections may be one line; do not repeat claims to fill them. Record budget and inspected scope in provenance. Keep IDs stable during refresh.
 
 1. provenance and coverage
 2. pack profile and tier (with observed counts)
@@ -985,7 +968,7 @@ See `templates/index.example.json`. Its placeholder entries contain `REPLACE_ME`
   "format": "unity-project-workflow-index",
   "format_version": "1.2",
   "workflow_version": "1",
-  "profile": "standard",
+  "profile": "compact",
   "project": {"root": ".", "product_type": null, "tier": null},
   "snapshot": {"observed_date": null, "source_kind": null, "revision": null, "dirty": null, "completeness_limits": []},
   "documents": [
@@ -998,7 +981,7 @@ See `templates/index.example.json`. Its placeholder entries contain `REPLACE_ME`
     {"name": "REPLACE_ME", "version": null, "note": "version unknown until observed", "claim_ids": []}
   ],
   "task_routes": [
-    {"id": "R-001", "title": "REPLACE_ME", "document": "development-workflow.md", "check_ids": []}
+    {"id": "R-001", "title": "REPLACE_ME", "document": "agent.md", "check_ids": []}
   ],
   "refresh_triggers": []
 }
@@ -1037,7 +1020,7 @@ If activation semantics are uncertain, output a proposed patch and explain manua
 <!-- END file: hosts/AGENTS-aware.md -->
 
 <!-- BEGIN file: tools/packlib.py -->
-"""Shared helpers for the workflow-pack tools (v1.2.1). Standard library only."""
+"""Shared helpers for the workflow-pack tools (v1.3.0). Standard library only."""
 import re
 from pathlib import Path
 
@@ -1231,7 +1214,7 @@ def find_cycles(graph):
 
 <!-- BEGIN file: tools/validate_pack.py -->
 #!/usr/bin/env python3
-"""Validate a generated Unity AI workflow pack (generator v1.2.1).
+"""Validate a generated Unity AI workflow pack (generator v1.3.0).
 
 Usage:
     python validate_pack.py <repo_root> [pack_dir]
@@ -1262,6 +1245,8 @@ def check_index(index, root, defs, profile, err, warn):
     if index.get("format_version") not in (None, "1.2"):
         err.append(f"index.json format_version must be '1.2', got {index.get('format_version')!r}")
     proj = index.get("project")
+    if not isinstance(proj, dict):
+        err.append("index.json project must be an object")
     if isinstance(proj, dict):
         for k in ("root", "product_type", "tier"):
             if k not in proj:
@@ -1269,9 +1254,11 @@ def check_index(index, root, defs, profile, err, warn):
         tier = proj.get("tier")
         if tier is None:
             warn.append("index.json project.tier is null; record the depth tier")
-        elif tier not in P.TIERS:
+        elif not isinstance(tier, str) or tier not in P.TIERS:
             err.append(f"index.json project.tier must be one of {sorted(P.TIERS)}")
     snap = index.get("snapshot")
+    if not isinstance(snap, dict):
+        err.append("index.json snapshot must be an object")
     if isinstance(snap, dict):
         for k in ("observed_date", "source_kind", "revision", "dirty", "completeness_limits"):
             if k not in snap:
@@ -1293,9 +1280,11 @@ def check_index(index, root, defs, profile, err, warn):
                            "(status lives only in validation-matrix.md)")
         if "path" in d:
             state = d.get("path_state")
-            if state not in P.PATH_STATES:
+            if not isinstance(state, str) or state not in P.PATH_STATES:
                 err.append(f"index.json{trail}: path '{d['path']}' has invalid or missing path_state")
-            elif isinstance(d["path"], str):
+            if not isinstance(d["path"], str) or not d["path"]:
+                err.append(f"index.json{trail}: path must be a nonempty string")
+            elif isinstance(state, str) and state in P.PATH_STATES:
                 exists = (root / d["path"]).exists()
                 if state in ("existing", "generated") and not exists:
                     err.append(f"index.json{trail}: {state} path not found: {d['path']}")
@@ -1305,6 +1294,7 @@ def check_index(index, root, defs, profile, err, warn):
     def entries(key, required):
         arr = index.get(key)
         if not isinstance(arr, list):
+            err.append(f"index.json {key} must be an array")
             return []
         for i, e in enumerate(arr):
             if not isinstance(e, dict):
@@ -1319,27 +1309,39 @@ def check_index(index, root, defs, profile, err, warn):
     eps = entries("entry_points", ["id", "path", "path_state", "kind", "certainty", "claim_ids"])
     stack = entries("stack", ["name", "version", "claim_ids"])
     routes = entries("task_routes", ["id", "title", "document", "check_ids"])
+    triggers = index.get("refresh_triggers")
+    if not isinstance(triggers, list) or any(not isinstance(t, str) for t in triggers):
+        err.append("index.json refresh_triggers must be an array of strings")
+
+    def references(entry, key, prefix):
+        values = entry.get(key)
+        if not isinstance(values, list) or any(
+                not isinstance(v, str) or not re.fullmatch(prefix + r"-\d{3}", v)
+                for v in values):
+            err.append(f"index.json {key} must be an array of {prefix}-### IDs")
+            return []
+        return values
 
     for e in eps:
-        if e.get("certainty") not in P.CERTAINTY:
+        if not isinstance(e.get("certainty"), str) or e["certainty"] not in P.CERTAINTY:
             err.append(f"index.json entry_point {e.get('id')}: certainty must be one of {sorted(P.CERTAINTY)}")
     for e in stack:
         if e.get("version") is None and not e.get("note"):
             err.append(f"index.json stack '{e.get('name')}': null version requires a 'note'")
     for key, arr in (("entry_points", eps), ("stack", stack)):
         for e in arr:
-            for cid in e.get("claim_ids") or []:
+            for cid in references(e, "claim_ids", "C"):
                 if cid not in defs:
                     err.append(f"index.json {key}: claim_id {cid} is not defined")
     for e in routes:
         rid = e.get("id")
-        if rid not in defs:
+        if not isinstance(rid, str) or not re.fullmatch(r"R-\d{3}", rid) or rid not in defs:
             err.append(f"index.json task_routes: route {rid} is not defined in the pack")
-        for vid in e.get("check_ids") or []:
+        for vid in references(e, "check_ids", "V"):
             if vid not in defs:
                 err.append(f"index.json task_routes {rid}: check {vid} is not defined")
 
-    listed = {d.get("path", "").split("/")[-1] for d in docs}
+    listed = {d["path"].split("/")[-1] for d in docs if isinstance(d.get("path"), str)}
     needed = ["agent.md", "project-context.md", "validation-matrix.md", "session-handoff.md"]
     if profile in ("standard", "extended"):
         needed += ["README.md", "development-workflow.md"]
@@ -1364,6 +1366,8 @@ def main(argv):
     else:
         try:
             index = json.loads(texts["index.json"])
+            if not isinstance(index, dict):
+                err.append("index.json must be a JSON object")
         except json.JSONDecodeError as e:
             err.append(f"index.json does not parse: {e}")
     if isinstance(index, dict):
@@ -1398,6 +1402,8 @@ def main(argv):
     # ---- IDs ---------------------------------------------------------------
     defs = P.collect_defs(texts)
     for i, where in sorted(defs.items()):
+        if i.startswith("V-") and any(n != "validation-matrix.md" for n in where):
+            err.append(f"check {i}: definitions belong only in validation-matrix.md")
         if len(where) > 1:
             err.append(f"duplicate ID {i} defined in: {', '.join(where)}")
     for name, text in texts.items():
@@ -1435,8 +1441,8 @@ def main(argv):
             if not vs:
                 err.append(f"claim {cid}: execution_verified must cite a V-### check")
             for v in vs:
-                if v in matrix and matrix[v] != "passed":
-                    err.append(f"claim {cid}: cites {v} whose Status is '{matrix[v]}', not 'passed'")
+                if matrix.get(v) != "passed":
+                    err.append(f"claim {cid}: cites {v} whose Status is '{matrix.get(v)}', not 'passed'")
         if label in ("source_verified", "serialized_verified") and c["path"] and "*" not in c["path"]:
             target = root / c["path"]
             if not target.exists():
@@ -1537,6 +1543,10 @@ def main(argv):
     # ---- validation matrix -------------------------------------------------
     vblocks = P.blocks(matrix_text, "V")
     for vid, body in vblocks:
+        for label in ("Preconditions and environment", "Runner or exact manual input path",
+                      "Expected observable result"):
+            if not (P.field(body, label) or "").strip():
+                err.append(f"check {vid}: missing {label}:")
         stat = (P.field(body, "Status") or "").strip("`* ")
         if len(re.findall(r"^[ \t]*Status:", body, re.M)) != 1:
             err.append(f"check {vid}: must have exactly one Status: line")
@@ -1574,13 +1584,13 @@ if __name__ == "__main__":
 
 <!-- BEGIN file: tools/suspects.py -->
 #!/usr/bin/env python3
-"""Compute suspect claims for Refresh mode (generator v1.2.1).
+"""Compute suspect claims for Refresh mode (generator v1.3.0).
 
 Usage:
     python suspects.py <repo_root> [--pack DIR] (--since REV | --changed PATH [PATH ...])
                        [--trigger TOKEN ...] [--json]
 
---since REV     changed files = `git diff --name-only REV` (working tree vs REV)
+--since REV     tracked changes against REV plus untracked, nonignored files
 --changed ...   explicit repository-relative paths (use when git is unavailable)
 --trigger TOKEN also mark every claim whose invalidates: list contains TOKEN
                 (e.g. package_or_unity_version_changed)
@@ -1602,11 +1612,20 @@ import packlib as P  # noqa: E402
 
 
 def git_changed(root, rev):
-    r = subprocess.run(["git", "-C", str(root), "diff", "--name-only", rev],
-                       capture_output=True, text=True)
-    if r.returncode != 0:
-        return None, r.stderr.strip()
-    return [x.strip() for x in r.stdout.splitlines() if x.strip()], ""
+    changed = set()
+    # NUL delimiters preserve spaces, newlines, and non-ASCII filenames.
+    # Disable rename detection so both old and new paths invalidate claims.
+    for args in (["diff", "--name-only", "--no-renames", "-z", rev, "--"],
+                 ["ls-files", "--others", "--exclude-standard", "-z"]):
+        try:
+            r = subprocess.run(["git", "-C", str(root)] + args, capture_output=True)
+        except OSError as exc:
+            return None, str(exc)
+        if r.returncode != 0:
+            return None, r.stderr.decode("utf-8", errors="replace").strip()
+        changed.update(p.decode("utf-8", errors="surrogateescape")
+                       for p in r.stdout.split(b"\0") if p)
+    return sorted(changed), ""
 
 
 def main(argv):
@@ -1641,6 +1660,11 @@ def main(argv):
             c = c[2:]
         return c
     changed = {norm(c) for c in changed}
+    # Index ancestors once instead of scanning every changed path for every claim.
+    ancestors = set()
+    for path in changed:
+        parts = path.split("/")
+        ancestors.update("/".join(parts[:i]) for i in range(1, len(parts)))
 
     direct = {}
     for cid, c in claims.items():
@@ -1652,7 +1676,7 @@ def main(argv):
             why = "path_changed"
         elif p + ".meta" in changed:
             why = "meta_changed"
-        elif any(f.startswith(p + "/") for f in changed):
+        elif p in ancestors:
             why = "file_under_path_changed"
         elif c["label"] not in ("proposed", "unknown") and not (root / p).exists():
             why = "path_missing"
@@ -1720,3 +1744,132 @@ def main(argv):
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
 <!-- END file: tools/suspects.py -->
+
+<!-- BEGIN file: tools/context.py -->
+#!/usr/bin/env python3
+"""Print a route list or a bounded task context from a generated workflow pack.
+
+Usage: python context.py ROOT [--pack DIR] [--route R-001] [--max-chars 16000]
+Repeat --route to select multiple routes. No source files are read or modified.
+Read applicable AGENTS.md instructions and agent.md before using this excerpt.
+Exit 0 = success, 1 = invalid selection/pack, 2 = context exceeds the output budget.
+"""
+import argparse
+import re
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import packlib as P
+
+
+def select(texts, route_ids):
+    def block(identifier, name, body):
+        heading = re.search(r"^#{2,4}[ \t]+" + re.escape(identifier) + r"\b[^\n]*",
+                            P.scan_text(name, texts[name]), re.M)
+        return (identifier, name, heading.group(0) + "\n" + body.strip())
+
+    routes = {rid: (body, name) for rid, body, name in P.all_blocks(texts, "R")}
+    if not routes:
+        raise ValueError("no routes found; generate a pack first")
+    if not route_ids:
+        lines = ["Routes (choose --route R-###; repeat for a task spanning routes):"]
+        for rid, (body, name) in sorted(routes.items()):
+            lines.append(f"{rid} [{name}] Start: {P.field(body, 'Start') or 'unspecified'}")
+        return "\n".join(lines) + "\n"
+    missing = set(route_ids) - routes.keys()
+    if missing:
+        raise ValueError("undefined routes: " + ", ".join(sorted(missing)))
+
+    claims = P.parse_claims(texts)
+    needed, selected, finding_ids = set(), [], set()
+    for rid in sorted(set(route_ids)):
+        body, name = routes[rid]
+        selected.append(block(rid, name, body))
+        needed.update(P.ANY_ID.findall(body))
+
+    def expand_claims():
+        queue = [i for i in needed if i.startswith("C-")]
+        seen = set()
+        while queue:
+            cid = queue.pop()
+            if cid in seen:
+                continue
+            seen.add(cid)
+            if cid not in claims:
+                raise ValueError(f"undefined claim: {cid}; run validate_pack.py")
+            refs = set(claims[cid]["deps"]) | set(P.V_ID.findall(claims[cid]["line"]))
+            needed.update(refs)
+            queue.extend(i for i in refs if i.startswith("C-"))
+
+    expand_claims()
+    findings = P.all_blocks(texts, "F")
+    while True:
+        added = False
+        for fid, body, name in findings:
+            if fid not in finding_ids and (fid in needed or
+                    set(P.C_ID.findall(P.field(body, "Evidence") or "")) & needed):
+                selected.append(block(fid, name, body))
+                finding_ids.add(fid)
+                needed.update(P.ANY_ID.findall(body))
+                added = True
+        if not added:
+            break
+        expand_claims()
+    for cid in sorted(needed):
+        if cid in claims:
+            c = claims[cid]
+            selected.append((cid, c["file"], c["line"]))
+
+    matrix = texts.get("validation-matrix.md", "")
+    for vid, body in P.blocks(matrix, "V"):
+        covers = set(P.ANY_ID.findall(P.field(body, "Covers") or ""))
+        if vid in needed or covers & (set(route_ids) | finding_ids):
+            selected.append(block(vid, "validation-matrix.md", body))
+            needed.add(vid)
+
+    # All protected areas are small and safety-relevant, including those a route forgot to cite.
+    for match in P.PROT_DEF.finditer(texts.get("project-context.md", "")):
+        selected.append((match.group(1), "project-context.md", match.group(0).strip()))
+    provided = {sid for sid, _, _ in selected}
+    missing = {i for i in needed if i.startswith(("C-", "V-", "P-"))} - provided
+    if missing:
+        raise ValueError("undefined context IDs: " + ", ".join(sorted(missing)))
+
+    intro = (
+        "# Selected task context\n\n"
+        "Read applicable AGENTS.md and agent.md first; resume work also reads session-handoff.md.\n"
+        "This is an excerpt, not a new source of truth. Check freshness before relying on claims.\n"
+        "Other routes, increments, contracts, and uninspected source are not included.\n"
+        "Follow referenced IDs outside this excerpt in their canonical files when needed.\n"
+    )
+    return intro + "".join(f"\n<!-- {name} -->\n{body}\n" for _, name, body in selected)
+
+
+def main(argv):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("root")
+    ap.add_argument("--pack", default="docs/ai-workflow")
+    ap.add_argument("--route", action="append", default=[])
+    ap.add_argument("--max-chars", type=int, default=16000)
+    args = ap.parse_args(argv[1:])
+    if args.max_chars < 1:
+        ap.error("--max-chars must be positive")
+    root = Path(args.root).resolve()
+    try:
+        output = select(P.read_pack(root, root / args.pack), args.route)
+    except (ValueError, OSError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    if len(output) > args.max_chars:
+        print(f"Context needs {len(output)} characters; limit is {args.max_chars}. "
+              "Select fewer routes, read their canonical blocks directly, or raise --max-chars. "
+              "Nothing was truncated.", file=sys.stderr)
+        return 2
+    print(output, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
+<!-- END file: tools/context.py -->

@@ -10,7 +10,7 @@ If shell access exists, run:
 python <pack_dir>/tools/validate_pack.py <repo_root> <pack_dir>
 ```
 
-Copy `tools/packlib.py`, `tools/validate_pack.py`, and `tools/suspects.py` into `<pack_dir>/tools/` first (the validator imports `packlib.py`). Fix every validator error. Warnings require review and either correction or an explicit reason in the README. If no shell is available, perform the same checks by reading and say the validator was not executed.
+Copy `tools/packlib.py`, `tools/validate_pack.py`, `tools/suspects.py`, and `tools/context.py` into `<pack_dir>/tools/` first (the tools import `packlib.py`). Fix every validator error. Warnings require review and either correction or an explicit reason in the README (Compact: handoff limits). If no shell is available, perform the same checks by reading and say the validator was not executed.
 
 The validator checks mechanics: IDs, formats, status vocabulary, increment-to-matrix coupling, cited paths and symbols, size limits, placeholder leftovers. It cannot prove that claims are true.
 

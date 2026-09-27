@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate a generated Unity AI workflow pack (generator v1.2.1).
+"""Validate a generated Unity AI workflow pack (generator v1.3.0).
 
 Usage:
     python validate_pack.py <repo_root> [pack_dir]
@@ -30,6 +30,8 @@ def check_index(index, root, defs, profile, err, warn):
     if index.get("format_version") not in (None, "1.2"):
         err.append(f"index.json format_version must be '1.2', got {index.get('format_version')!r}")
     proj = index.get("project")
+    if not isinstance(proj, dict):
+        err.append("index.json project must be an object")
     if isinstance(proj, dict):
         for k in ("root", "product_type", "tier"):
             if k not in proj:
@@ -37,9 +39,11 @@ def check_index(index, root, defs, profile, err, warn):
         tier = proj.get("tier")
         if tier is None:
             warn.append("index.json project.tier is null; record the depth tier")
-        elif tier not in P.TIERS:
+        elif not isinstance(tier, str) or tier not in P.TIERS:
             err.append(f"index.json project.tier must be one of {sorted(P.TIERS)}")
     snap = index.get("snapshot")
+    if not isinstance(snap, dict):
+        err.append("index.json snapshot must be an object")
     if isinstance(snap, dict):
         for k in ("observed_date", "source_kind", "revision", "dirty", "completeness_limits"):
             if k not in snap:
@@ -61,9 +65,11 @@ def check_index(index, root, defs, profile, err, warn):
                            "(status lives only in validation-matrix.md)")
         if "path" in d:
             state = d.get("path_state")
-            if state not in P.PATH_STATES:
+            if not isinstance(state, str) or state not in P.PATH_STATES:
                 err.append(f"index.json{trail}: path '{d['path']}' has invalid or missing path_state")
-            elif isinstance(d["path"], str):
+            if not isinstance(d["path"], str) or not d["path"]:
+                err.append(f"index.json{trail}: path must be a nonempty string")
+            elif isinstance(state, str) and state in P.PATH_STATES:
                 exists = (root / d["path"]).exists()
                 if state in ("existing", "generated") and not exists:
                     err.append(f"index.json{trail}: {state} path not found: {d['path']}")
@@ -73,6 +79,7 @@ def check_index(index, root, defs, profile, err, warn):
     def entries(key, required):
         arr = index.get(key)
         if not isinstance(arr, list):
+            err.append(f"index.json {key} must be an array")
             return []
         for i, e in enumerate(arr):
             if not isinstance(e, dict):
@@ -87,27 +94,39 @@ def check_index(index, root, defs, profile, err, warn):
     eps = entries("entry_points", ["id", "path", "path_state", "kind", "certainty", "claim_ids"])
     stack = entries("stack", ["name", "version", "claim_ids"])
     routes = entries("task_routes", ["id", "title", "document", "check_ids"])
+    triggers = index.get("refresh_triggers")
+    if not isinstance(triggers, list) or any(not isinstance(t, str) for t in triggers):
+        err.append("index.json refresh_triggers must be an array of strings")
+
+    def references(entry, key, prefix):
+        values = entry.get(key)
+        if not isinstance(values, list) or any(
+                not isinstance(v, str) or not re.fullmatch(prefix + r"-\d{3}", v)
+                for v in values):
+            err.append(f"index.json {key} must be an array of {prefix}-### IDs")
+            return []
+        return values
 
     for e in eps:
-        if e.get("certainty") not in P.CERTAINTY:
+        if not isinstance(e.get("certainty"), str) or e["certainty"] not in P.CERTAINTY:
             err.append(f"index.json entry_point {e.get('id')}: certainty must be one of {sorted(P.CERTAINTY)}")
     for e in stack:
         if e.get("version") is None and not e.get("note"):
             err.append(f"index.json stack '{e.get('name')}': null version requires a 'note'")
     for key, arr in (("entry_points", eps), ("stack", stack)):
         for e in arr:
-            for cid in e.get("claim_ids") or []:
+            for cid in references(e, "claim_ids", "C"):
                 if cid not in defs:
                     err.append(f"index.json {key}: claim_id {cid} is not defined")
     for e in routes:
         rid = e.get("id")
-        if rid not in defs:
+        if not isinstance(rid, str) or not re.fullmatch(r"R-\d{3}", rid) or rid not in defs:
             err.append(f"index.json task_routes: route {rid} is not defined in the pack")
-        for vid in e.get("check_ids") or []:
+        for vid in references(e, "check_ids", "V"):
             if vid not in defs:
                 err.append(f"index.json task_routes {rid}: check {vid} is not defined")
 
-    listed = {d.get("path", "").split("/")[-1] for d in docs}
+    listed = {d["path"].split("/")[-1] for d in docs if isinstance(d.get("path"), str)}
     needed = ["agent.md", "project-context.md", "validation-matrix.md", "session-handoff.md"]
     if profile in ("standard", "extended"):
         needed += ["README.md", "development-workflow.md"]
@@ -132,6 +151,8 @@ def main(argv):
     else:
         try:
             index = json.loads(texts["index.json"])
+            if not isinstance(index, dict):
+                err.append("index.json must be a JSON object")
         except json.JSONDecodeError as e:
             err.append(f"index.json does not parse: {e}")
     if isinstance(index, dict):
@@ -166,6 +187,8 @@ def main(argv):
     # ---- IDs ---------------------------------------------------------------
     defs = P.collect_defs(texts)
     for i, where in sorted(defs.items()):
+        if i.startswith("V-") and any(n != "validation-matrix.md" for n in where):
+            err.append(f"check {i}: definitions belong only in validation-matrix.md")
         if len(where) > 1:
             err.append(f"duplicate ID {i} defined in: {', '.join(where)}")
     for name, text in texts.items():
@@ -203,8 +226,8 @@ def main(argv):
             if not vs:
                 err.append(f"claim {cid}: execution_verified must cite a V-### check")
             for v in vs:
-                if v in matrix and matrix[v] != "passed":
-                    err.append(f"claim {cid}: cites {v} whose Status is '{matrix[v]}', not 'passed'")
+                if matrix.get(v) != "passed":
+                    err.append(f"claim {cid}: cites {v} whose Status is '{matrix.get(v)}', not 'passed'")
         if label in ("source_verified", "serialized_verified") and c["path"] and "*" not in c["path"]:
             target = root / c["path"]
             if not target.exists():
@@ -305,6 +328,10 @@ def main(argv):
     # ---- validation matrix -------------------------------------------------
     vblocks = P.blocks(matrix_text, "V")
     for vid, body in vblocks:
+        for label in ("Preconditions and environment", "Runner or exact manual input path",
+                      "Expected observable result"):
+            if not (P.field(body, label) or "").strip():
+                err.append(f"check {vid}: missing {label}:")
         stat = (P.field(body, "Status") or "").strip("`* ")
         if len(re.findall(r"^[ \t]*Status:", body, re.M)) != 1:
             err.append(f"check {vid}: must have exactly one Status: line")

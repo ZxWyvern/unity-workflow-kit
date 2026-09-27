@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.3.0
+
+Focused setup and task context:
+
+- One setup prompt; auto mode generates or refreshes while preserving existing pack paths/profile.
+- Lean investigation and Compact output by default, including focused scopes in large repositories.
+- Conditional module loading, filenames before contents, short startup instructions, and no tool-source reads just to copy tools.
+- `context.py` lists routes or emits a selected route with claim dependencies, relevant detailed findings/checks, and protected areas. A character ceiling fails explicitly instead of truncating evidence.
+- No-change refresh leaves the pack untouched; dirty snapshots and external environment changes require explicit review.
+- English and Indonesian onboarding rewritten around the shorter workflow.
+
+Correctness:
+
+- Reject non-object indexes, invalid container/reference types, and misplaced check definitions.
+- Execution claims require passed checks in the canonical matrix. Checks require an environment, runner, and expected result.
+- Git refresh includes untracked nonignored files, preserves quoted/non-ASCII paths, and invalidates both sides of a rename.
+- Changed-path ancestor indexing avoids scanning every changed filename for every claim.
+- Added regression/context tests, including 800 unrelated claims with unchanged selected output. CI now includes Windows and Linux; releases check bundle freshness before packaging.
+
+Migration: keep index `format_version` at `1.2`. Copy the four tools (including `context.py`) into the existing pack, refresh its loading instructions, and resolve stricter validator errors. Do not renumber IDs or convert an existing Standard/Extended pack without a reason. Actual token cost and real-project generation quality remain unbenchmarked.
+
 ## v1.2.1
 
 Fixes and hardening after review of v1.2. Verified by `tests/run_tests.py`.

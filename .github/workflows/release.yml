@@ -18,7 +18,9 @@ jobs:
       - name: Self-tests
         run: python tests/run_tests.py
       - name: Build bundle
-        run: python tools/bundle.py
+        run: |
+          python tools/bundle.py
+          git diff --exit-code -- dist/
       - name: Package
         run: |
           mkdir -p out

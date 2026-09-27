@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Compute suspect claims for Refresh mode (generator v1.2.1).
+"""Compute suspect claims for Refresh mode (generator v1.3.0).
 
 Usage:
     python suspects.py <repo_root> [--pack DIR] (--since REV | --changed PATH [PATH ...])
                        [--trigger TOKEN ...] [--json]
 
---since REV     changed files = `git diff --name-only REV` (working tree vs REV)
+--since REV     tracked changes against REV plus untracked, nonignored files
 --changed ...   explicit repository-relative paths (use when git is unavailable)
 --trigger TOKEN also mark every claim whose invalidates: list contains TOKEN
                 (e.g. package_or_unity_version_changed)
@@ -27,11 +27,20 @@ import packlib as P  # noqa: E402
 
 
 def git_changed(root, rev):
-    r = subprocess.run(["git", "-C", str(root), "diff", "--name-only", rev],
-                       capture_output=True, text=True)
-    if r.returncode != 0:
-        return None, r.stderr.strip()
-    return [x.strip() for x in r.stdout.splitlines() if x.strip()], ""
+    changed = set()
+    # NUL delimiters preserve spaces, newlines, and non-ASCII filenames.
+    # Disable rename detection so both old and new paths invalidate claims.
+    for args in (["diff", "--name-only", "--no-renames", "-z", rev, "--"],
+                 ["ls-files", "--others", "--exclude-standard", "-z"]):
+        try:
+            r = subprocess.run(["git", "-C", str(root)] + args, capture_output=True)
+        except OSError as exc:
+            return None, str(exc)
+        if r.returncode != 0:
+            return None, r.stderr.decode("utf-8", errors="replace").strip()
+        changed.update(p.decode("utf-8", errors="surrogateescape")
+                       for p in r.stdout.split(b"\0") if p)
+    return sorted(changed), ""
 
 
 def main(argv):
@@ -66,6 +75,11 @@ def main(argv):
             c = c[2:]
         return c
     changed = {norm(c) for c in changed}
+    # Index ancestors once instead of scanning every changed path for every claim.
+    ancestors = set()
+    for path in changed:
+        parts = path.split("/")
+        ancestors.update("/".join(parts[:i]) for i in range(1, len(parts)))
 
     direct = {}
     for cid, c in claims.items():
@@ -77,7 +91,7 @@ def main(argv):
             why = "path_changed"
         elif p + ".meta" in changed:
             why = "meta_changed"
-        elif any(f.startswith(p + "/") for f in changed):
+        elif p in ancestors:
             why = "file_under_path_changed"
         elif c["label"] not in ("proposed", "unknown") and not (root / p).exists():
             why = "path_missing"

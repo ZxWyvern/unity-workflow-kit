@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Self-tests for the v1.2.1 tools. Run from anywhere: python tests/run_tests.py
+"""Self-tests for the workflow tools. Run from anywhere: python tests/run_tests.py
 
 Copies tests/fixtures/good-pack to a temp dir, applies one mutation per case, and checks that
 validate_pack.py reports the expected ERROR/WARN. Also exercises suspects.py and bundle.py.
@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unittest
 from pathlib import Path
 
 KIT = Path(__file__).resolve().parent.parent
@@ -168,8 +169,10 @@ def main():
                   "BEGIN file: tools/validate_pack.py", "BEGIN file: tools/packlib.py"]
         check("bundle contains kit files, no tests", code == 0 and all(n in text for n in needed) and "BEGIN file: tests/" not in text, out)
 
-    print(f"\n{total - len(failures)}/{total} passed")
-    return 1 if failures else 0
+    print(f"\n{total - len(failures)}/{total} original checks passed", flush=True)
+    suite = unittest.defaultTestLoader.discover(str(KIT / "tests"), pattern="test_*.py")
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    return 1 if failures or not result.wasSuccessful() else 0
 
 
 if __name__ == "__main__":

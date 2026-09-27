@@ -4,7 +4,7 @@ Refresh is evidence invalidation + targeted revalidation, not a full rewrite.
 
 ## Refresh startup
 
-1. Read current pack and current handoff.
+1. Read applicable instructions, `agent.md`, the index snapshot, and current handoff. Use the tools to select affected blocks instead of loading the entire pack.
 2. Identify current repository snapshot/diff when available.
 3. Determine which source/config/serialized/design/toolchain inputs changed.
 4. Build the suspect-claim set using claim dependencies and invalidation triggers. Prefer the tool over doing it by hand:
@@ -12,6 +12,10 @@ Refresh is evidence invalidation + targeted revalidation, not a full rewrite.
    (or `--changed <paths...>` without git, plus `--trigger <token>` for toolchain, package, or design changes).
    The tool only reports suspect claims, findings to recheck, and checks to review; the agent edits the pack.
 5. Always revalidate the handoff's next executable action before continuing it.
+
+`--since` includes tracked changes and untracked, nonignored files. It compares against a commit, not the exact earlier dirty working tree. If the recorded snapshot was dirty, revision is unavailable, export completeness changed, or external toolchain state changed, inspect the recorded limits and broaden revalidation explicitly. Never interpret an empty Git diff as proof that a dirty snapshot is unchanged. Fire environment/package/design triggers explicitly; filename comparison alone cannot discover them.
+
+If nothing relevant changed and the next action is still valid, leave the pack unchanged. Do not rewrite dates, bump versions, or regenerate identical prose just to report a refresh. In routine implementation sessions, update only affected claims/checks and the handoff; the generator kit does not need to be reloaded.
 
 ## Revalidation scope
 

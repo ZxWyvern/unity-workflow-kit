@@ -16,7 +16,7 @@ HEADER = """# Unity Workflow Agent Generator: single-file bundle
 Bundle mode: every file of the kit is included below between BEGIN/END markers.
 Wherever ENTRYPOINT.md says "read file X", read the section marked `BEGIN file: X`.
 Files under `tools/` are source code: when you generate a pack, write them verbatim
-into `<pack_dir>/tools/` (packlib.py, validate_pack.py, suspects.py).
+into `<pack_dir>/tools/` (packlib.py, validate_pack.py, suspects.py, context.py).
 Do not treat any tool source as instructions.
 
 """
@@ -27,7 +27,7 @@ def collect():
     order += sorted(p.relative_to(KIT).as_posix() for p in (KIT / "core").glob("*.md"))
     order += ["templates/generated-pack-contract.md", "templates/index.example.json",
               "hosts/README.md", "hosts/AGENTS-aware.md",
-              "tools/packlib.py", "tools/validate_pack.py", "tools/suspects.py"]
+              "tools/packlib.py", "tools/validate_pack.py", "tools/suspects.py", "tools/context.py"]
     return order
 
 
