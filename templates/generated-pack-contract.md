@@ -10,12 +10,12 @@ Defines the project-specific pack produced by the generator. `tools/validate_pac
 | `agent.md` | yes (also holds routes and increments) | yes | yes |
 | `project-context.md` | yes | yes | yes |
 | `validation-matrix.md` | yes | yes | yes |
-| `session-handoff.md` | yes | yes | yes |
-| `index.json` | yes | yes | yes |
+| `sessions/<branch-slug>__<actor-slug>.md` | yes (at least one; one per branch and actor) | yes | yes |
+| `index.json` | yes (generated) | yes (generated) | yes (generated) |
 | `README.md` | no | yes | yes |
 | `development-workflow.md` | no | yes | yes |
 | `contracts/*.md` | no | no | only relevant ones |
-| `tools/packlib.py`, `validate_pack.py`, `suspects.py`, `context.py` | copied | copied | copied |
+| `tools/packlib.py`, `validate_pack.py`, `suspects.py`, `context.py`, `verify_compile.py`, `mcp_server.py` | copied | copied | copied |
 
 ## Root `AGENTS.md`
 
@@ -41,12 +41,12 @@ Real startup path, relevant systems, sources of truth, architecture policy, prot
 
 Aim for 80 lines. Include the actual pack paths in this loading procedure:
 
-1. Read applicable repository instructions and this file. Read `session-handoff.md` when resuming.
+1. Read applicable repository instructions and this file. Read `sessions/<branch-slug>__<actor-slug>.md` when resuming; never write a shared handoff.
 2. Run `python <pack_dir>/tools/context.py <repo_root> --pack <pack_dir>` to list routes, then add `--route R-###` for the selected route (repeat for a task spanning routes).
 3. Read source and conditional contracts relevant to that task; check claim freshness first. If no route matches, trace the requested path and add a grounded route instead of forcing a match.
 4. If Python is unavailable, use `index.json` and read the selected route, referenced claims and their `deps:`, protected areas, and matrix checks directly. Do not load every document by default.
 
-`context.py` caps output at 16,000 characters by default. It exits with an explanation instead of silently truncating; split routes, read canonical blocks, or raise `--max-chars` when correctness needs more context. Characters are not an exact token count.
+`context.py` caps output at 16,000 characters by default. It exits with an explanation instead of silently truncating; split routes, read canonical blocks, or raise `--max-chars` when correctness needs more context. For source inspection, `--file` emits a C# skeleton or a condensed `.unity`/`.prefab` hierarchy; `--method` returns only the needed body. Characters are not an exact token count.
 
 ## `project-context.md`
 
@@ -123,12 +123,13 @@ Remaining limit or next action:
 
 `Status` is exactly one of `passed`, `failed`, `not_run`, `not_applicable`. `passed` or `failed` requires a real observed result and evidence location. Do not invent test names or treat test attributes as execution.
 
-## `session-handoff.md`
+## `sessions/<branch-slug>__<actor-slug>.md`
 
-Current state only. It must contain the phrase "see validation matrix" and must not restate outcomes.
+Current state for one branch and one developer/agent. The filename is lowercase; `/` and unsafe characters in the branch become `-`, and the actor is a stable developer or agent ID. Example: `sessions/feat-combat__dev-andi.md`. Each file must contain the phrase "see validation matrix" and must not restate outcomes. Legacy `session-handoff.md` is accepted with a warning and should be migrated.
 
 ```text
 Date and source snapshot:
+Branch and actor:
 User goal and authorized scope:
 Project root / selected entry path:
 Pack profile:
@@ -143,11 +144,11 @@ Next executable increment and acceptance:
 Resume instructions and isolated test data:
 ```
 
-State explicitly when no game implementation changed.
+State explicitly when no game implementation changed. Write only your own file; never force-push or rewrite another actor's session.
 
 ## `index.json`
 
-Navigation only. Valid JSON; no comments, trailing commas, or fake schema URL. All paths are repository-relative. Every object with `path` also has `path_state`: `existing`, `generated`, or `proposed` (a proposed path must not exist yet). No status, result, or pass/fail keys anywhere.
+Navigation only. Generated deterministically by `python <pack_dir>/tools/packlib.py index <repo_root> --pack <pack_dir>`; do not hand-edit. Valid JSON; no comments, trailing commas, or fake schema URL. All paths are repository-relative. Every object with `path` also has `path_state`: `existing`, `generated`, or `proposed` (a proposed path must not exist yet). No status, result, or pass/fail keys anywhere. `documents` includes the `sessions` directory, not each session file, so branch work does not churn the index.
 
 Top-level fields: `format`, `format_version` (`"1.2"`), `workflow_version`, `profile`, `project`, `snapshot`, `documents`, `entry_points`, `stack`, `task_routes`, `refresh_triggers`.
 

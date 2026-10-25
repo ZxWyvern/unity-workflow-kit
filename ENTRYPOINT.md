@@ -1,4 +1,4 @@
-# Unity Workflow Agent Generator v1.3.0
+# Unity Workflow Agent Generator v1.4.0
 
 Create a project-specific workflow pack from inspected Unity project files. Deliver the pack, validate it, and report the next executable action. Generation changes documentation and copied workflow tools only. Implementation is a separate request.
 
@@ -18,11 +18,13 @@ Read `core/01-authority-and-scope.md`, `core/04-evidence-claims-and-invalidation
 | Investigating source/architecture | Relevant passes in `core/03-investigation-passes.md` |
 | Before serialized or runtime claims | Passes B and C in `core/03-investigation-passes.md` |
 | Existing instructions or conflicting document ownership | `core/05-output-architecture.md` |
+| Resuming work, parallel developers/agents, or handoff format | Session rules below and `core/06-operating-loop.md` |
 | Writing the generated agent's implementation procedure | `core/06-operating-loop.md` |
 | Refreshing an existing pack | `core/07-refresh-policy.md` |
 | Validation warnings, incomplete exports, or completion uncertainty | `core/08-validation-and-completion.md` |
 | Relevant networking, narrative, editor tooling, or performance systems | Matching section of `core/09-conditional-contracts.md` |
 | Requested/detected host integration | Matching `hosts/` file; verify behavior before generating native config |
+| Large C#/scene inspection or MCP host | `tools/context.py --file`; MCP notes in `hosts/AGENTS-aware.md` |
 
 ## Lean investigation
 
@@ -36,10 +38,12 @@ Read `core/01-authority-and-scope.md`, `core/04-evidence-claims-and-invalidation
 
 Use the contract's formats and canonical files. Never conflate source existence, serialized wiring, and runtime execution. Unknowns remain unknown. Follow existing architecture unless the user explicitly supplies `toward: <target>`.
 
-Copy `packlib.py`, `validate_pack.py`, `suspects.py`, and `context.py` from `tools/` into `<pack_dir>/tools/`. Run `python <pack_dir>/tools/validate_pack.py <repo_root> <pack_dir>` when a shell and Python exist. Resolve errors and explain remaining warnings. If unavailable, say validation was not executed and check the contract manually.
+Copy `packlib.py`, `validate_pack.py`, `suspects.py`, `context.py`, `verify_compile.py`, and `mcp_server.py` from `tools/` into `<pack_dir>/tools/`. Run `python <pack_dir>/tools/validate_pack.py <repo_root> <pack_dir>` when a shell and Python exist. Resolve errors and explain remaining warnings. If unavailable, say validation was not executed and check the contract manually.
 
-Teach future sessions to read applicable instructions and `agent.md`, list routes with `context.py`, then load only the selected route and dependency closure. Read the handoff when resuming. Check freshness; the excerpt is navigation, not proof. Never truncate required evidence or safety instructions to meet a token budget.
+Teach future sessions to read applicable instructions and `agent.md`, list routes with `context.py`, then load only the selected route and dependency closure. Session state is sharded: `sessions/<branch-slug>__<actor-slug>.md` per branch and actor; never write a shared `session-handoff.md`. Load the active branch in full and other branches as bounded headers. `context.py --file` prints a C# skeleton or a condensed `.unity`/`.prefab` hierarchy unless `--method` asks for a full body. Check freshness; the excerpt is navigation, not proof. Never truncate required evidence or safety instructions to meet a token budget.
 
 Finish with pack location, grounding sources, pack validation, game checks run/not run, remaining limits, and one copyable next request. No gameplay changes are implied by generating a pack.
 
-In a pasted full bundle, references mean sections marked `BEGIN file: ...`. The full bundle includes all tool source for chat-only use; directory mode avoids loading that source.
+Run `python <pack_dir>/tools/verify_compile.py <repo_root>` for a filtered C# check when a solution/project exists; report dotnet failure or unavailability separately from Unity execution. `index.json` and `dist/` are generated artifacts: regenerate `index.json` with `packlib.py index` and never hand-edit it. Optional project automation lives in the kit's `tools/install_hooks.py` and `tools/mcp_server.py`.
+
+In a pasted full bundle, references mean sections marked `BEGIN file: ...`. Use the full bundle only for first-time initialization or a chat-only host that cannot read repository files; for ongoing work, load the selected core/template/host files only. Directory mode avoids loading tool source entirely.

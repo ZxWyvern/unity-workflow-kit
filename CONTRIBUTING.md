@@ -17,9 +17,9 @@ python tools/bundle.py         # rebuild dist/ if you touched ENTRYPOINT.md, cor
 
 CI fails if `dist/` is out of date.
 
-To add a validator rule: add the check in `tools/validate_pack.py`, add a mutation case to `CASES` in `tests/run_tests.py` or a regression in `tests/test_tools.py`, and confirm the clean fixture still passes with 0 errors and 0 warnings. The main runner executes both suites. Exercise context selection, dependency preservation, and oversized-output behavior for loading changes.
+To add a validator rule: add the check in `tools/validate_pack.py`, add a mutation case to `CASES` in `tests/run_tests.py` or a regression in `tests/test_tools.py`, and confirm the clean fixture still passes with 0 errors and 0 warnings. The main runner executes both suites. Exercise context selection, dependency preservation, session sharding, C#/YAML condensation, `.meta`/GUID integrity, filtered compiler output, and oversized-output behavior for relevant changes. Keep `tools/`, `scripts/hooks/`, and `dist/` in sync: the pre-commit hook and CI both regenerate the bundle.
 
-Keep defaults cheap to load: optional modules load by relevance; copied tool source does not need to enter model context. Measure any cost claim on named inputs and distinguish character counts from actual model tokens. Broader project coverage must be explicit, not inferred from repository size.
+Keep defaults cheap to load: optional modules load by relevance; copied tool source does not need to enter model context. Measure any cost claim on named inputs and distinguish character counts from actual model tokens. Never let a token-saving excerpt become the only evidence for a completion claim; canonical source and real checks still decide. Broader project coverage must be explicit, not inferred from repository size.
 
 `tests/fixtures/good-pack` is fictional. Never copy its names into real guidance.
 

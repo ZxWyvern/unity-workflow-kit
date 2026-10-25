@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.4.0
+
+Multi-user, multi-agent, and token-diet release:
+
+- Sharded session state at `sessions/<branch-slug>__<actor-slug>.md`. The active branch loads in full; other branches appear as five-line headers. Legacy `session-handoff.md` still validates with a deprecation warning.
+- `index.json` is regenerated deterministically by `tools/packlib.py` from the pack scan; sessions are one directory entry so branch work does not churn navigation.
+- `.gitattributes` marks generated `index.json` and the dist bundle as `merge=ours`; `install_hooks.py` configures the driver, appends missing rules for consumer repositories, and records a custom pack path for the hooks.
+- Versioned Git hooks (`pre-commit`, `post-merge`, `post-checkout`) rebuild the bundle/index and block commits on pack validation failure.
+- `context.py --file` emits a C# skeleton (types, attributes, serialized/public fields, signatures, XML docs) and `--method` returns only the requested implementation. `.unity`/`.prefab` files condense to a GameObject/Transform/MonoBehaviour hierarchy with script names and authored values.
+- `suspects.py` adds changed C# type definitions to a reference scan, so likely call sites become suspects without a repository-wide search.
+- `validate_pack.py` checks Unity `.meta` coverage, duplicate/invalid GUIDs, orphan metas, broken script GUIDs, documented project paths, and sharded session filenames.
+- `verify_compile.py` runs a filtered `dotnet build --no-restore -v q`; success is one `COMPILE_STATUS: OK (0 errors)` line. `validate_pack.py --compile` integrates it.
+- `mcp_server.py` exposes `uwk_get_context`, `uwk_find_suspects`, `uwk_validate`, and `uwk_save_handoff` over newline-delimited MCP stdio with no third-party packages.
+- Tests cover skeleton/YAML condensation, multi-session isolation, index determinism, hooks, `.meta`/GUID checks, filtered compiler output, and MCP dispatch.
+
+Migration: copy all six pack tools plus `scripts/hooks/`, replace the shared handoff with at least one `sessions/<branch-slug>__<actor-slug>.md`, run `packlib.py index` once, install hooks, and resolve new validator errors (missing `.meta`, duplicate GUIDs, missing documented paths). Keep index `format_version` at `1.2`. Existing pack profiles and IDs remain compatible. Token and compile claims still need measurement on named projects and hosts.
+
 ## v1.3.0
 
 Focused setup and task context:

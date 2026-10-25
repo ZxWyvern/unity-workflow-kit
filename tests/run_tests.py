@@ -17,7 +17,10 @@ KIT = Path(__file__).resolve().parent.parent
 FIXTURE = KIT / "tests" / "fixtures" / "good-pack"
 PACK = "docs/ai-workflow"
 CTX, WF, MX = f"{PACK}/project-context.md", f"{PACK}/development-workflow.md", f"{PACK}/validation-matrix.md"
-HO, AG, IDX, RD = f"{PACK}/session-handoff.md", f"{PACK}/agent.md", f"{PACK}/index.json", f"{PACK}/README.md"
+HO, AG, IDX, RD = f"{PACK}/sessions/main__fixture.md", f"{PACK}/agent.md", f"{PACK}/index.json", f"{PACK}/README.md"
+HM = "Assets/Scripts/Game/Health.cs.meta"
+BM = "Assets/Scripts/Game/Bootstrap.cs.meta"
+SC = "Assets/Scenes/Dev.unity"
 
 # (name, edits, level, substring)   edit = (file, "replace"|"append"|"delete", a, b)
 CASES = [
@@ -42,15 +45,21 @@ CASES = [
     ("route without checks", [(WF, "replace", "Checks: V-001", "Checks: none")], "ERROR", "route R-002"),
     ("closed finding with unpassed check", [(CTX, "replace", "[F-003 | closed | V-002]", "[F-003 | closed | V-001]")], "ERROR", "closed finding F-003"),
     ("handoff without deferral", [(HO, "replace", "see validation matrix", "consult the matrix")], "ERROR", "see validation matrix"),
+    ("missing session store", [(HO, "delete", "", "")], "ERROR", "missing session state"),
+    ("missing meta file", [(HM, "delete", "", "")], "ERROR", "missing .meta for file"),
+    ("duplicate guid", [(HM, "replace", "guid: 22222222222222222222222222222222", "guid: 11111111111111111111111111111111")], "ERROR", "duplicate GUID"),
+    ("invalid guid", [(HM, "replace", "guid: 22222222222222222222222222222222", "guid: not-a-guid")], "ERROR", "valid 32-character guid"),
+    ("broken script guid", [(SC, "replace", "guid: 22222222222222222222222222222222", "guid: 99999999999999999999999999999999")], "WARN", "script GUID 99999999"),
+    ("documented path missing", [(RD, "append", "", "\nSee Assets/Scenes/Nope.unity.\n")], "WARN", "documented path not found"),
     ("placeholder left", [(RD, "append", "", "\nREPLACE_ME\n")], "ERROR", "REPLACE_ME"),
     ("agents section too long", [("AGENTS.md", "replace", "<!-- ai-workflow:end -->", "\n".join(f"line {i}" for i in range(160)) + "\n<!-- ai-workflow:end -->")], "ERROR", "exceeds 150"),
     ("agent.md too long", [(AG, "append", "", "\n" + "\n".join(f"line {i}" for i in range(210)))], "ERROR", "exceeds 200"),
     ("missing agent.md", [(AG, "delete", "", "")], "ERROR", "missing required file: agent.md"),
     ("index parse error", [(IDX, "append", "", "}")], "ERROR", "does not parse"),
     ("index status key", [(IDX, "replace", '"profile": "standard",', '"profile": "standard", "status": "ok",')], "ERROR", "forbidden status"),
-    ("index missing path_state", [(IDX, "replace", ', "path_state": "existing"', "")], "ERROR", "path_state"),
+    ("index missing path_state", [(IDX, "replace", '"path_state": "existing"', '"state_removed": true')], "ERROR", "path_state"),
     ("index existing path missing", [(IDX, "replace", '"path": "Assets/Scenes/Dev.unity"', '"path": "Assets/Scenes/Nope.unity"')], "ERROR", "path not found"),
-    ("index entry missing field", [(IDX, "replace", '"certainty": "provisional", "claim_ids": ["C-002"]}', '"certainty": "provisional"}')], "ERROR", "missing field: claim_ids"),
+    ("index entry missing field", [(IDX, "replace", '"certainty": "provisional",\n      "claim_ids": [\n        "C-002"\n      ]', '"certainty": "provisional"')], "ERROR", "missing field: claim_ids"),
     ("index null version without note", [(IDX, "replace", '"version": "6000.0.0f1"', '"version": null')], "ERROR", "null version requires"),
     ("handoff mentions passed", [(HO, "append", "", "\nV-002 passed\n")], "WARN", "mentions passed/failed"),
     ("closed finding still listed", [(MX, "replace", "Status: not_run\nObserved result and evidence location: none yet\nRemaining limit or next action: schedule with the next Health change",
@@ -62,7 +71,7 @@ CASES = [
 
 
 def run(cmd):
-    r = subprocess.run([sys.executable] + cmd, capture_output=True, text=True)
+    r = subprocess.run([sys.executable] + cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode, r.stdout + r.stderr
 
 
@@ -166,7 +175,10 @@ def main():
         code, out = run([str(KIT / "tools" / "bundle.py"), str(bundle)])
         text = bundle.read_text(encoding="utf-8") if bundle.exists() else ""
         needed = ["BEGIN file: ENTRYPOINT.md", "BEGIN file: core/09-conditional-contracts.md",
-                  "BEGIN file: tools/validate_pack.py", "BEGIN file: tools/packlib.py"]
+                  "BEGIN file: tools/validate_pack.py", "BEGIN file: tools/packlib.py",
+                  "BEGIN file: tools/verify_compile.py", "BEGIN file: tools/mcp_server.py",
+                  "BEGIN file: scripts/hooks/pre-commit",
+                  "BEGIN file: scripts/hooks/uwk_hooks_common.py"]
         check("bundle contains kit files, no tests", code == 0 and all(n in text for n in needed) and "BEGIN file: tests/" not in text, out)
 
     print(f"\n{total - len(failures)}/{total} original checks passed", flush=True)

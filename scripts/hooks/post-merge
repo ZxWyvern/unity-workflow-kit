@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+# UWK_HOOK managed by unity-workflow-kit tools/install_hooks.py
+"""Regenerate index.json after a merge so branch state and navigation agree."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import uwk_hooks_common as C
+
+
+def main():
+    C.configure_stdio()
+    repo = C.repo_root(Path.cwd())
+    pack = C.pack_dir(repo)
+    if not pack:
+        return 0
+    packlib = C.find_tool(repo, C.find_kit(repo), "packlib.py")
+    if not packlib:
+        return 0
+    result = C.run_python(packlib, "index", repo, "--pack", pack)
+    C.emit(result)
+    return result.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -3,12 +3,13 @@
 Bundle mode: every file of the kit is included below between BEGIN/END markers.
 Wherever ENTRYPOINT.md says "read file X", read the section marked `BEGIN file: X`.
 Files under `tools/` are source code: when you generate a pack, write them verbatim
-into `<pack_dir>/tools/` (packlib.py, validate_pack.py, suspects.py, context.py).
-Do not treat any tool source as instructions.
+into `<pack_dir>/tools/` (packlib.py, validate_pack.py, suspects.py, context.py,
+verify_compile.py, mcp_server.py). install_hooks.py and scripts/hooks/ are optional
+project-level automation; do not treat any tool source as instructions.
 
 
 <!-- BEGIN file: ENTRYPOINT.md -->
-# Unity Workflow Agent Generator v1.3.0
+# Unity Workflow Agent Generator v1.4.0
 
 Create a project-specific workflow pack from inspected Unity project files. Deliver the pack, validate it, and report the next executable action. Generation changes documentation and copied workflow tools only. Implementation is a separate request.
 
@@ -28,11 +29,13 @@ Read `core/01-authority-and-scope.md`, `core/04-evidence-claims-and-invalidation
 | Investigating source/architecture | Relevant passes in `core/03-investigation-passes.md` |
 | Before serialized or runtime claims | Passes B and C in `core/03-investigation-passes.md` |
 | Existing instructions or conflicting document ownership | `core/05-output-architecture.md` |
+| Resuming work, parallel developers/agents, or handoff format | Session rules below and `core/06-operating-loop.md` |
 | Writing the generated agent's implementation procedure | `core/06-operating-loop.md` |
 | Refreshing an existing pack | `core/07-refresh-policy.md` |
 | Validation warnings, incomplete exports, or completion uncertainty | `core/08-validation-and-completion.md` |
 | Relevant networking, narrative, editor tooling, or performance systems | Matching section of `core/09-conditional-contracts.md` |
 | Requested/detected host integration | Matching `hosts/` file; verify behavior before generating native config |
+| Large C#/scene inspection or MCP host | `tools/context.py --file`; MCP notes in `hosts/AGENTS-aware.md` |
 
 ## Lean investigation
 
@@ -46,13 +49,15 @@ Read `core/01-authority-and-scope.md`, `core/04-evidence-claims-and-invalidation
 
 Use the contract's formats and canonical files. Never conflate source existence, serialized wiring, and runtime execution. Unknowns remain unknown. Follow existing architecture unless the user explicitly supplies `toward: <target>`.
 
-Copy `packlib.py`, `validate_pack.py`, `suspects.py`, and `context.py` from `tools/` into `<pack_dir>/tools/`. Run `python <pack_dir>/tools/validate_pack.py <repo_root> <pack_dir>` when a shell and Python exist. Resolve errors and explain remaining warnings. If unavailable, say validation was not executed and check the contract manually.
+Copy `packlib.py`, `validate_pack.py`, `suspects.py`, `context.py`, `verify_compile.py`, and `mcp_server.py` from `tools/` into `<pack_dir>/tools/`. Run `python <pack_dir>/tools/validate_pack.py <repo_root> <pack_dir>` when a shell and Python exist. Resolve errors and explain remaining warnings. If unavailable, say validation was not executed and check the contract manually.
 
-Teach future sessions to read applicable instructions and `agent.md`, list routes with `context.py`, then load only the selected route and dependency closure. Read the handoff when resuming. Check freshness; the excerpt is navigation, not proof. Never truncate required evidence or safety instructions to meet a token budget.
+Teach future sessions to read applicable instructions and `agent.md`, list routes with `context.py`, then load only the selected route and dependency closure. Session state is sharded: `sessions/<branch-slug>__<actor-slug>.md` per branch and actor; never write a shared `session-handoff.md`. Load the active branch in full and other branches as bounded headers. `context.py --file` prints a C# skeleton or a condensed `.unity`/`.prefab` hierarchy unless `--method` asks for a full body. Check freshness; the excerpt is navigation, not proof. Never truncate required evidence or safety instructions to meet a token budget.
 
 Finish with pack location, grounding sources, pack validation, game checks run/not run, remaining limits, and one copyable next request. No gameplay changes are implied by generating a pack.
 
-In a pasted full bundle, references mean sections marked `BEGIN file: ...`. The full bundle includes all tool source for chat-only use; directory mode avoids loading that source.
+Run `python <pack_dir>/tools/verify_compile.py <repo_root>` for a filtered C# check when a solution/project exists; report dotnet failure or unavailability separately from Unity execution. `index.json` and `dist/` are generated artifacts: regenerate `index.json` with `packlib.py index` and never hand-edit it. Optional project automation lives in the kit's `tools/install_hooks.py` and `tools/mcp_server.py`.
+
+In a pasted full bundle, references mean sections marked `BEGIN file: ...`. Use the full bundle only for first-time initialization or a chat-only host that cannot read repository files; for ongoing work, load the selected core/template/host files only. Directory mode avoids loading tool source entirely.
 <!-- END file: ENTRYPOINT.md -->
 
 <!-- BEGIN file: core/01-authority-and-scope.md -->
@@ -184,7 +189,7 @@ Do not prescribe fixes for overflow stubs unless promoted into detailed findings
 
 Choose the smallest profile that preserves safe navigation and verification. Every profile ends with the same evidence rules; only document count changes.
 
-All profiles copy `tools/packlib.py`, `tools/validate_pack.py`, `tools/suspects.py`, and `tools/context.py` into `<pack_dir>/tools/`. Copy files directly without printing source into model context.
+All profiles copy `tools/packlib.py`, `tools/validate_pack.py`, `tools/suspects.py`, `tools/context.py`, `tools/verify_compile.py`, and `tools/mcp_server.py` into `<pack_dir>/tools/`. Copy files directly without printing source into model context.
 
 ### Compact (default)
 
@@ -196,8 +201,8 @@ Required generated files:
 - `agent.md` (short): role, operating loop, task routes, and increments. Compact keeps **procedure** here so `project-context.md` stays facts only;
 - `project-context.md`;
 - `validation-matrix.md`;
-- `session-handoff.md`;
-- `index.json`.
+- `sessions/` with at least one `<branch-slug>__<actor>.md` handoff;
+- generated `index.json` (run `packlib.py index`, never hand-edit).
 
 ### Standard
 
@@ -232,6 +237,13 @@ If roughly 70% of available context/time is consumed before W3, stop investigati
 # 03 — Investigation Passes
 
 Prefer targeted search (`rg` or host equivalent) to directory dumps. Batch independent reads; sequence dependent decisions and writes.
+
+When a pack tool exists, start source inspection with `context.py --file` instead of reading the raw file:
+
+- C# prints a skeleton: `using`, namespace/types, attributes, serialized/public fields, signatures, and XML docs; bodies are omitted. Add `--method <name>` only for the implementation you actually need.
+- `.unity` and `.prefab` print a compact GameObject/Transform/MonoBehaviour hierarchy with script names and authored values; raw Unity YAML is not loaded.
+
+Skeletons and condensed hierarchies are navigation. Read the canonical source or open the editor before making a claim that depends on a body, serialization detail, or runtime behavior.
 
 ## Pass A — Workspace, instructions, and preserved work
 
@@ -457,7 +469,7 @@ Every category has one authoritative home. Other files reference IDs instead of 
 | provenance, stack, claims, subsystem map, findings, protected areas (`P-###`), **not-inspected list** | `project-context.md` |
 | task routes, operating loop, increments | `development-workflow.md`; in Compact, `agent.md` |
 | validation check definitions **and statuses** | `validation-matrix.md` |
-| current session state and next action | `session-handoff.md` (it points to the not-inspected list, never copies it) |
+| current session state and next action | `sessions/<branch-slug>__<actor-slug>.md` (one writer per file; it points to the not-inspected list, never copies it) |
 | navigation paths, entry points, routes | `index.json` |
 | startup rules | root `AGENTS.md` (between markers) or verified host-native entry |
 | portable agent role and behavior | `agent.md` |
@@ -468,7 +480,7 @@ Other files cite IDs (`C-###`, `F-###`, `V-###`, `R-###`, `I-###`, `P-###`) and 
 
 Pass/fail/not-run/not-applicable status exists **only** in `validation-matrix.md`.
 
-`session-handoff.md` may list check IDs run this session and must say “see validation matrix”; it may not duplicate the outcomes.
+A session file may list check IDs run this session and must say “see validation matrix”; it may not duplicate the outcomes. The legacy shared `session-handoff.md` is read-only and deprecated.
 
 `index.json` contains no status/result/pass/fail fields.
 
@@ -576,7 +588,7 @@ Use the project's existing supported runners and build entry points. Before pres
 Choose the smallest meaningful set:
 
 - diff, reference, serialized-identity, and assembly-boundary integrity;
-- compilation/import (a textual C# review or an external compiler is not equivalent to Unity compilation);
+- compilation/import (a textual C# review or an external compiler is not equivalent to Unity compilation; `tools/verify_compile.py` gives a fast filtered `dotnet build` signal, not a Unity import);
 - affected tests and behavior-focused regression tests for changed logic;
 - real input/scene/tool interaction for integration claims;
 - lifecycle, failure, restore, network, or platform cases raised by the change;
@@ -592,13 +604,29 @@ Rules:
 
 ## 8. Finish with evidence
 
-Review final diff; refresh affected claims; update handoff. Report separately:
+Review final diff; refresh affected claims; update this actor's session file. Report separately:
 
 - source implemented;
 - serialized references checked;
 - scene/tool behavior verified;
 - target player/build verified;
 - pending checks and consequences.
+
+## 9. Parallel work and session state
+
+Sessions are sharded, one file per branch and actor:
+
+```text
+<session_dir>/<branch-slug>__<actor>.md
+```
+
+The branch slug replaces `/` and unsafe characters with `-`; the actor is the developer or agent identity. The active branch's file is current state. Other branches are read as headers only unless the user asks for them.
+
+- Never create or rewrite a branch-wide `session-handoff.md`.
+- Replace stale content in your own file; do not append an unbounded history.
+- Record the next executable action and its acceptance check so another actor can resume.
+- Regenerate `index.json` with `packlib.py index` after structural document changes; never hand-edit it.
+- When two actors touch the same pack, leave the other actor's session file alone.
 <!-- END file: core/06-operating-loop.md -->
 
 <!-- BEGIN file: core/07-refresh-policy.md -->
@@ -608,14 +636,15 @@ Refresh is evidence invalidation + targeted revalidation, not a full rewrite.
 
 ## Refresh startup
 
-1. Read applicable instructions, `agent.md`, the index snapshot, and current handoff. Use the tools to select affected blocks instead of loading the entire pack.
+1. Read applicable instructions, `agent.md`, the index snapshot, and the active `sessions/<branch-slug>__<actor-slug>.md`. Use the tools to select affected blocks instead of loading the entire pack.
 2. Identify current repository snapshot/diff when available.
 3. Determine which source/config/serialized/design/toolchain inputs changed.
 4. Build the suspect-claim set using claim dependencies and invalidation triggers. Prefer the tool over doing it by hand:
    `python <pack_dir>/tools/suspects.py <repo_root> --pack <pack_dir> --since <recorded revision>`
    (or `--changed <paths...>` without git, plus `--trigger <token>` for toolchain, package, or design changes).
-   The tool only reports suspect claims, findings to recheck, and checks to review; the agent edits the pack.
-5. Always revalidate the handoff's next executable action before continuing it.
+   The tool also scans files that mention C# types declared in changed files, so likely call sites become suspects without a repository-wide search. The tool only reports suspect claims, findings to recheck, and checks to review; the agent edits the pack.
+5. Always revalidate the active session's next executable action before continuing it.
+6. After structural document changes, regenerate `index.json` with `python <pack_dir>/tools/packlib.py index <repo_root> --pack <pack_dir>`. The file is generated; do not hand-edit it.
 
 `--since` includes tracked changes and untracked, nonignored files. It compares against a commit, not the exact earlier dirty working tree. If the recorded snapshot was dirty, revision is unavailable, export completeness changed, or external toolchain state changed, inspect the recorded limits and broaden revalidation explicitly. Never interpret an empty Git diff as proof that a dirty snapshot is unchanged. Fire environment/package/design triggers explicitly; filename comparison alone cannot discover them.
 
@@ -647,9 +676,9 @@ Findings have no status field. A finding is **closed** when its acceptance check
 
 Bump `workflow_version` when generated workflow facts/routes/contracts materially change. Do not conflate this with the game/product version.
 
-## Handoff replacement
+## Session replacement
 
-`session-handoff.md` is current state, not an append-only history. Replace stale content each refresh/update. Version control already preserves history when available.
+Each `sessions/<branch-slug>__<actor-slug>.md` is current state for that branch and actor, not an append-only history. Replace stale content in your own file each refresh/update; leave other actors' files alone. Version control already preserves history when available. Legacy `session-handoff.md` is accepted with a warning and should be migrated.
 <!-- END file: core/07-refresh-policy.md -->
 
 <!-- BEGIN file: core/08-validation-and-completion.md -->
@@ -665,9 +694,17 @@ If shell access exists, run:
 python <pack_dir>/tools/validate_pack.py <repo_root> <pack_dir>
 ```
 
-Copy `tools/packlib.py`, `tools/validate_pack.py`, `tools/suspects.py`, and `tools/context.py` into `<pack_dir>/tools/` first (the tools import `packlib.py`). Fix every validator error. Warnings require review and either correction or an explicit reason in the README (Compact: handoff limits). If no shell is available, perform the same checks by reading and say the validator was not executed.
+Copy `tools/packlib.py`, `tools/validate_pack.py`, `tools/suspects.py`, `tools/context.py`, `tools/verify_compile.py`, and `tools/mcp_server.py` into `<pack_dir>/tools/` first (the tools import `packlib.py`). For self-contained hook installation, also copy `tools/install_hooks.py` and `scripts/hooks/`; otherwise run the installer from the kit. Fix every validator error. Warnings require review and either correction or an explicit reason in the README (Compact: handoff limits). If no shell is available, perform the same checks by reading and say the validator was not executed.
 
-The validator checks mechanics: IDs, formats, status vocabulary, increment-to-matrix coupling, cited paths and symbols, size limits, placeholder leftovers. It cannot prove that claims are true.
+The validator checks mechanics: IDs, formats, status vocabulary, increment-to-matrix coupling, cited paths and symbols, size limits, placeholder leftovers, sharded session names, Unity `.meta` coverage, duplicate/broken GUIDs, and documented project paths. It cannot prove that claims are true.
+
+For a source-level compile signal when `dotnet` and a `.sln`/`.csproj` exist:
+
+```bash
+python <pack_dir>/tools/verify_compile.py <repo_root> [--project <solution>]
+```
+
+It prints only `CS####` diagnostics and a `COMPILE_STATUS:` line. A missing project or `dotnet` is `NOT_RUN`, not a passing check. This does not replace Unity import, editor, or player verification.
 
 ## Manual validation
 
@@ -682,6 +719,7 @@ Confirm:
 - no credentials/secrets/filler/invented API signatures/guarantees;
 - protected areas are defined once with `P-###` IDs and referenced, not restated;
 - the not-inspected list has exactly one home (`project-context.md`);
+- session state lives at `sessions/<branch-slug>__<actor-slug>.md`, not in a shared handoff;
 - claim dependencies and invalidation triggers are syntactically coherent;
 - selected pack profile is justified by project complexity, not by prestige.
 
@@ -697,7 +735,7 @@ Reason explicitly about applicable cases:
 - missing design authority;
 - existing nested instructions;
 - package/editor-tool/non-game Unity project;
-- missing `.meta` or non-text serialization;
+- missing `.meta`, duplicate GUIDs, broken script GUIDs, or non-text serialization;
 - Git LFS/submodule gaps.
 
 Reasoning is not an executed test.
@@ -807,12 +845,12 @@ Defines the project-specific pack produced by the generator. `tools/validate_pac
 | `agent.md` | yes (also holds routes and increments) | yes | yes |
 | `project-context.md` | yes | yes | yes |
 | `validation-matrix.md` | yes | yes | yes |
-| `session-handoff.md` | yes | yes | yes |
-| `index.json` | yes | yes | yes |
+| `sessions/<branch-slug>__<actor-slug>.md` | yes (at least one; one per branch and actor) | yes | yes |
+| `index.json` | yes (generated) | yes (generated) | yes (generated) |
 | `README.md` | no | yes | yes |
 | `development-workflow.md` | no | yes | yes |
 | `contracts/*.md` | no | no | only relevant ones |
-| `tools/packlib.py`, `validate_pack.py`, `suspects.py`, `context.py` | copied | copied | copied |
+| `tools/packlib.py`, `validate_pack.py`, `suspects.py`, `context.py`, `verify_compile.py`, `mcp_server.py` | copied | copied | copied |
 
 ## Root `AGENTS.md`
 
@@ -838,12 +876,12 @@ Real startup path, relevant systems, sources of truth, architecture policy, prot
 
 Aim for 80 lines. Include the actual pack paths in this loading procedure:
 
-1. Read applicable repository instructions and this file. Read `session-handoff.md` when resuming.
+1. Read applicable repository instructions and this file. Read `sessions/<branch-slug>__<actor-slug>.md` when resuming; never write a shared handoff.
 2. Run `python <pack_dir>/tools/context.py <repo_root> --pack <pack_dir>` to list routes, then add `--route R-###` for the selected route (repeat for a task spanning routes).
 3. Read source and conditional contracts relevant to that task; check claim freshness first. If no route matches, trace the requested path and add a grounded route instead of forcing a match.
 4. If Python is unavailable, use `index.json` and read the selected route, referenced claims and their `deps:`, protected areas, and matrix checks directly. Do not load every document by default.
 
-`context.py` caps output at 16,000 characters by default. It exits with an explanation instead of silently truncating; split routes, read canonical blocks, or raise `--max-chars` when correctness needs more context. Characters are not an exact token count.
+`context.py` caps output at 16,000 characters by default. It exits with an explanation instead of silently truncating; split routes, read canonical blocks, or raise `--max-chars` when correctness needs more context. For source inspection, `--file` emits a C# skeleton or a condensed `.unity`/`.prefab` hierarchy; `--method` returns only the needed body. Characters are not an exact token count.
 
 ## `project-context.md`
 
@@ -920,12 +958,13 @@ Remaining limit or next action:
 
 `Status` is exactly one of `passed`, `failed`, `not_run`, `not_applicable`. `passed` or `failed` requires a real observed result and evidence location. Do not invent test names or treat test attributes as execution.
 
-## `session-handoff.md`
+## `sessions/<branch-slug>__<actor-slug>.md`
 
-Current state only. It must contain the phrase "see validation matrix" and must not restate outcomes.
+Current state for one branch and one developer/agent. The filename is lowercase; `/` and unsafe characters in the branch become `-`, and the actor is a stable developer or agent ID. Example: `sessions/feat-combat__dev-andi.md`. Each file must contain the phrase "see validation matrix" and must not restate outcomes. Legacy `session-handoff.md` is accepted with a warning and should be migrated.
 
 ```text
 Date and source snapshot:
+Branch and actor:
 User goal and authorized scope:
 Project root / selected entry path:
 Pack profile:
@@ -940,11 +979,11 @@ Next executable increment and acceptance:
 Resume instructions and isolated test data:
 ```
 
-State explicitly when no game implementation changed.
+State explicitly when no game implementation changed. Write only your own file; never force-push or rewrite another actor's session.
 
 ## `index.json`
 
-Navigation only. Valid JSON; no comments, trailing commas, or fake schema URL. All paths are repository-relative. Every object with `path` also has `path_state`: `existing`, `generated`, or `proposed` (a proposed path must not exist yet). No status, result, or pass/fail keys anywhere.
+Navigation only. Generated deterministically by `python <pack_dir>/tools/packlib.py index <repo_root> --pack <pack_dir>`; do not hand-edit. Valid JSON; no comments, trailing commas, or fake schema URL. All paths are repository-relative. Every object with `path` also has `path_state`: `existing`, `generated`, or `proposed` (a proposed path must not exist yet). No status, result, or pass/fail keys anywhere. `documents` includes the `sessions` directory, not each session file, so branch work does not churn the index.
 
 Top-level fields: `format`, `format_version` (`"1.2"`), `workflow_version`, `profile`, `project`, `snapshot`, `documents`, `entry_points`, `stack`, `task_routes`, `refresh_triggers`.
 
@@ -972,7 +1011,8 @@ See `templates/index.example.json`. Its placeholder entries contain `REPLACE_ME`
   "project": {"root": ".", "product_type": null, "tier": null},
   "snapshot": {"observed_date": null, "source_kind": null, "revision": null, "dirty": null, "completeness_limits": []},
   "documents": [
-    {"id": "doc-context", "path": "REPLACE_ME", "path_state": "generated", "purpose": "canonical facts"}
+    {"id": "doc-context", "path": "REPLACE_ME", "path_state": "generated", "purpose": "canonical facts"},
+    {"id": "doc-sessions", "path": "docs/ai-workflow/sessions", "path_state": "generated", "purpose": "sharded session handoffs"}
   ],
   "entry_points": [
     {"id": "entry-main", "path": "REPLACE_ME", "path_state": "existing", "kind": "development_scene", "certainty": "provisional", "claim_ids": []}
@@ -1000,6 +1040,7 @@ Typical entry points:
 | Claude Code | `CLAUDE.md` (may reference/import project rules) |
 | Cursor | `.cursor/rules/` |
 | GitHub Copilot | `.github/copilot-instructions.md` |
+| MCP-capable IDEs | `tools/mcp_server.py` (verify the host's config schema) |
 | Unknown | root `AGENTS.md` + portable `agent.md` + README loading instructions |
 
 Before generating host-native configuration, verify actual filename, path, supported schema, precedence, and discovery behavior. Never invent model IDs/frontmatter/tool endpoints.
@@ -1017,11 +1058,29 @@ When the repository/host demonstrably honors `AGENTS.md`:
 5. keep host/tool-specific commands out unless verified in the current environment.
 
 If activation semantics are uncertain, output a proposed patch and explain manual activation.
+
+## MCP-capable hosts
+
+When the host supports Model Context Protocol servers, prefer the native tools over manual shell paste:
+
+```bash
+python _ai-generator/tools/mcp_server.py --root .
+```
+
+Expose `uwk_get_context`, `uwk_find_suspects`, `uwk_validate`, and `uwk_save_handoff`. Verify the host's actual config filename, JSON shape, transport requirements, and start/restart behavior before editing configuration. Never invent server IDs or endpoints. If MCP is unavailable, keep the CLI fallback in `docs/USAGE.md`; the workflow must not depend on MCP.
+
+Session state remains per actor even through MCP: `uwk_save_handoff` writes only `sessions/<branch-slug>__<actor-slug>.md` and refreshes `index.json`. Do not add a tool that overwrites another actor's session or hand-edits generated files.
 <!-- END file: hosts/AGENTS-aware.md -->
 
 <!-- BEGIN file: tools/packlib.py -->
-"""Shared helpers for the workflow-pack tools (v1.3.0). Standard library only."""
+"""Shared helpers for the workflow-pack tools (v1.4.0). Standard library only."""
+import argparse
+import json
+import os
 import re
+import subprocess
+import sys
+from datetime import date
 from pathlib import Path
 
 LABELS = {"source_verified", "serialized_verified", "execution_verified",
@@ -1049,6 +1108,27 @@ AGENTS_BEGIN = "<!-- ai-workflow:begin -->"
 AGENTS_END = "<!-- ai-workflow:end -->"
 AGENTS_SECTION_LIMIT = 150
 AGENT_MD_LIMIT = 200
+SESSION_DIR = "sessions"
+LEGACY_HANDOFF = "session-handoff.md"
+SESSION_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]*__[a-z0-9][a-z0-9._-]*\.md$")
+HANDOFF_PHRASE = "see validation matrix"
+SESSION_HEADER_LINES = 5
+DOC_PURPOSES = {
+    "agent.md": "portable agent profile",
+    "project-context.md": "canonical facts",
+    "development-workflow.md": "routes and increments",
+    "validation-matrix.md": "checks and status",
+    "README.md": "install and use",
+    LEGACY_HANDOFF: "legacy current session state (deprecated)",
+}
+DOC_IDS = {
+    "agent.md": "doc-agent",
+    "project-context.md": "doc-context",
+    "development-workflow.md": "doc-workflow",
+    "validation-matrix.md": "doc-matrix",
+    "README.md": "doc-readme",
+    LEGACY_HANDOFF: "doc-handoff",
+}
 
 CLAIM_DEF = re.compile(r"^[ \t]*(?:[-*][ \t]*)?\[(C-\d{3})[ \t]*\|[ \t]*([a-z_]+)[ \t]*\|([^\]\n]+)\][^\n]*", re.M)
 PROT_DEF = re.compile(r"^[ \t]*(?:[-*][ \t]*)?\[(P-\d{3})\][^\n]*", re.M)
@@ -1140,6 +1220,218 @@ def all_closed(texts):
     return res
 
 
+def git_output(root, *args):
+    """Run git without a shell; return stdout or None when unavailable/failed."""
+    try:
+        r = subprocess.run(["git", "-C", str(root)] + list(args),
+                           capture_output=True, text=True, errors="replace", timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def slug(value, fallback="unknown"):
+    """Filesystem- and git-safe lowercase token for branch/actor names."""
+    value = re.sub(r"[^A-Za-z0-9._-]+", "-", (value or "").strip())
+    value = re.sub(r"-{2,}", "-", value).strip("-._")
+    return value.lower()[:64] or fallback
+
+
+def current_branch(root):
+    """Active branch name; UWK_BRANCH wins, then git, then 'detached'/None."""
+    env = os.environ.get("UWK_BRANCH")
+    if env:
+        return env
+    out = git_output(root, "rev-parse", "--abbrev-ref", "HEAD")
+    if out and out != "HEAD":
+        return out
+    out = git_output(root, "symbolic-ref", "--short", "HEAD")
+    if out:
+        return out
+    return "detached" if git_output(root, "rev-parse", "--git-dir") else None
+
+
+def current_actor(root):
+    """Actor name; UWK_ACTOR wins, then git config user.name, then USER, then 'agent'."""
+    env = os.environ.get("UWK_ACTOR")
+    if env:
+        return env
+    out = git_output(root, "config", "user.name")
+    if out:
+        return out
+    return os.environ.get("USERNAME") or os.environ.get("USER") or "agent"
+
+
+def session_relpath(branch, actor):
+    return f"{SESSION_DIR}/{slug(branch)}__{slug(actor)}.md"
+
+
+def session_names(texts):
+    return sorted(n for n in texts
+                  if n.startswith(SESSION_DIR + "/") and n.endswith(".md"))
+
+
+def session_summary(text, limit=SESSION_HEADER_LINES):
+    """Bounded header/summary for a session owned by another branch."""
+    lines = [line.rstrip() for line in text.splitlines() if line.strip()]
+    return "\n".join(lines[:max(1, limit)])
+
+
+def session_context(texts, branch=None, actor=None, header_lines=SESSION_HEADER_LINES):
+    """Active-branch sessions in full, other branches as short headers.
+
+    Returns plain text without a leading heading; an empty string when the pack
+    has no session state at all.
+    """
+    names = session_names(texts)
+    if names:
+        prefix = slug(branch) + "__" if branch else None
+        active = [n for n in names if prefix and n.rsplit("/", 1)[-1].startswith(prefix)]
+        if not active and len(names) == 1:
+            active = names
+        others = [n for n in names if n not in active]
+        parts = []
+        if branch:
+            who = actor or "unknown actor"
+            parts.append(f"Active branch: {branch} (actor: {who})")
+        for name in active:
+            parts.append(f"<!-- active session: {name} -->\n{texts[name].strip()}")
+        if others:
+            parts.append("Other branches (headers only; do not edit their sessions):")
+            for name in others:
+                parts.append(f"<!-- {name} -->\n{session_summary(texts[name], header_lines)}")
+        return "\n\n".join(parts)
+    if LEGACY_HANDOFF in texts:
+        return ("<!-- legacy session-handoff.md; migrate to sessions/<branch-slug>__<actor-slug>.md -->\n"
+                + texts[LEGACY_HANDOFF].strip())
+    return ""
+
+
+def session_problems(text):
+    problems = []
+    if HANDOFF_PHRASE not in text.lower():
+        problems.append(f"must say '{HANDOFF_PHRASE}' instead of restating outcomes")
+    return problems
+
+
+def _pack_relpath(root, pack):
+    root = Path(root).resolve()
+    pack = Path(pack).resolve()
+    try:
+        return pack.relative_to(root).as_posix()
+    except ValueError as exc:
+        raise ValueError(f"pack directory must be inside the repository: {pack}") from exc
+
+
+def _document_id(rel):
+    name = rel.rsplit("/", 1)[-1]
+    if name in DOC_IDS:
+        return DOC_IDS[name]
+    stem = re.sub(r"[^a-z0-9]+", "-", name.rsplit(".", 1)[0].lower()).strip("-")
+    prefix = "" if "/" not in rel else re.sub(r"[^a-z0-9]+", "-", rel.rsplit("/", 1)[0].lower()) + "-"
+    return "doc-" + prefix + (stem or "document")
+
+
+def build_documents(root, pack):
+    """Deterministically list every pack document plus the sharded session store."""
+    pack = Path(pack)
+    pack_rel = _pack_relpath(root, pack)
+    docs = []
+    for path in sorted(pack.rglob("*.md")):
+        rel = path.relative_to(pack)
+        if "tools" in rel.parts or rel.parts[0] == SESSION_DIR:
+            continue
+        rel_posix = rel.as_posix()
+        docs.append({
+            "id": _document_id(rel_posix),
+            "path": f"{pack_rel}/{rel_posix}" if pack_rel != "." else rel_posix,
+            "path_state": "generated",
+            "purpose": DOC_PURPOSES.get(rel.name, "workflow document"),
+        })
+    sessions = pack / SESSION_DIR
+    if sessions.is_dir():
+        docs.append({
+            "id": "doc-sessions",
+            "path": f"{pack_rel}/{SESSION_DIR}" if pack_rel != "." else SESSION_DIR,
+            "path_state": "generated",
+            "purpose": "sharded session handoffs (one file per branch and actor)",
+        })
+    docs.sort(key=lambda d: d["path"])
+    return docs
+
+
+def render_index(index):
+    return json.dumps(index, indent=2, ensure_ascii=False) + "\n"
+
+
+def refresh_index(root, pack, update_snapshot=False, today=None):
+    """Rebuild index.json documents from the pack scan. Returns (path, changed)."""
+    pack = Path(pack)
+    index_path = pack / "index.json"
+    if not index_path.is_file():
+        raise ValueError(f"index.json not found at {index_path}; create the pack first")
+    try:
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        raise ValueError(f"index.json cannot be refreshed: {exc}") from exc
+    if not isinstance(index, dict):
+        raise ValueError("index.json must be a JSON object")
+    index.setdefault("format", "unity-project-workflow-index")
+    index.setdefault("format_version", "1.2")
+    index.setdefault("workflow_version", "1")
+    index.setdefault("profile", "compact")
+    index["documents"] = build_documents(root, pack)
+    if update_snapshot:
+        snap = index.get("snapshot")
+        if not isinstance(snap, dict):
+            snap = {}
+        snap["observed_date"] = today or date.today().isoformat()
+        revision = git_output(root, "rev-parse", "HEAD")
+        if revision is not None:
+            snap["revision"] = revision
+            dirty = git_output(root, "status", "--porcelain")
+            snap["dirty"] = bool(dirty)
+        index["snapshot"] = snap
+    text = render_index(index)
+    current = index_path.read_text(encoding="utf-8")
+    changed = current != text
+    if changed:
+        tmp = index_path.with_suffix(".json.tmp")
+        tmp.write_text(text, encoding="utf-8")
+        tmp.replace(index_path)
+    return index_path, changed
+
+
+def save_handoff(root, pack, content, actor=None, branch=None, require_phrase=True):
+    """Write the active actor's sharded session file and refresh index.json."""
+    if not isinstance(content, str):
+        raise ValueError("session content must be a string")
+    content = content.strip()
+    if not content:
+        raise ValueError("session content is empty")
+    if require_phrase and HANDOFF_PHRASE not in content.lower():
+        raise ValueError(f"session content must contain '{HANDOFF_PHRASE}'")
+    branch = branch or current_branch(root) or "detached"
+    actor = actor or current_actor(root)
+    root = Path(root).resolve()
+    pack = Path(pack)
+    pack = (root / pack).resolve() if not pack.is_absolute() else pack.resolve()
+    try:
+        pack.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"pack directory must be inside the repository: {pack}") from exc
+    if not (pack / "index.json").is_file():
+        raise ValueError(f"index.json not found at {pack / 'index.json'}; create the pack first")
+    rel = session_relpath(branch, actor)
+    path = pack / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(content.rstrip() + "\n", encoding="utf-8")
+    tmp.replace(path)
+    index_path, changed = refresh_index(root, pack)
+    return path, index_path, changed
+
+
 def collect_defs(texts):
     """ID -> list of files that define it (claims, F/V/R/I headings, F stubs, P protected areas)."""
     defs = {}
@@ -1210,27 +1502,238 @@ def find_cycles(graph):
         if color[n] == WHITE:
             visit(n)
     return cycles
+
+
+def main(argv=None):
+    argv = list(sys.argv if argv is None else argv)
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+    ap = argparse.ArgumentParser(description="Session and index helpers for a workflow pack.")
+    sub = ap.add_subparsers(dest="command", required=True)
+
+    def common(p):
+        p.add_argument("root", nargs="?", default=".")
+        p.add_argument("--pack", default="docs/ai-workflow")
+
+    idx = sub.add_parser("index", help="rebuild index.json deterministically")
+    common(idx)
+    idx.add_argument("--check", action="store_true", help="exit 1 instead of writing when stale")
+    idx.add_argument("--snapshot", action="store_true", help="also refresh date/revision/dirty")
+
+    ses = sub.add_parser("session", help="print the active session file path")
+    common(ses)
+    ses.add_argument("--branch")
+    ses.add_argument("--actor")
+
+    save = sub.add_parser("save-handoff", help="write the active session file from stdin or a file")
+    common(save)
+    save.add_argument("--actor")
+    save.add_argument("--branch")
+    save.add_argument("--content-file", default="-")
+    save.add_argument("--no-phrase-check", action="store_true")
+
+    a = ap.parse_args(argv[1:])
+    root = Path(a.root).resolve()
+    pack = root / a.pack
+    try:
+        if a.command == "session":
+            print(pack / session_relpath(a.branch or current_branch(root) or "detached",
+                                         a.actor or current_actor(root)))
+            return 0
+        if a.command == "save-handoff":
+            if a.content_file == "-":
+                try:
+                    sys.stdin.reconfigure(encoding="utf-8", errors="replace")
+                except (AttributeError, ValueError):
+                    pass
+                content = sys.stdin.read()
+            else:
+                content = Path(a.content_file).read_text(encoding="utf-8")
+            path, index_path, changed = save_handoff(
+                root, pack, content, a.actor, a.branch, not a.no_phrase_check)
+            print(f"wrote {path.relative_to(root).as_posix()}")
+            print(f"index.json {'updated' if changed else 'already current'} ({index_path.relative_to(root).as_posix()})")
+            return 0
+        if a.check:
+            index_path = pack / "index.json"
+            if not index_path.is_file():
+                print("index.json not found", file=sys.stderr)
+                return 1
+            before = index_path.read_text(encoding="utf-8")
+            index = json.loads(before)
+            if not isinstance(index, dict):
+                print("index.json must be a JSON object", file=sys.stderr)
+                return 1
+            try:
+                index["documents"] = build_documents(root, pack)
+                text = render_index(index)
+            except ValueError as exc:
+                print(str(exc), file=sys.stderr)
+                return 1
+            if text != before:
+                print("index.json is stale; run: python tools/packlib.py index . --pack <pack>")
+                return 1
+            print("index.json is current")
+            return 0
+        index_path, changed = refresh_index(root, pack, a.snapshot)
+        rel = index_path.relative_to(root).as_posix()
+        print(f"{rel} {'updated' if changed else 'already current'}")
+        return 0
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
 <!-- END file: tools/packlib.py -->
 
 <!-- BEGIN file: tools/validate_pack.py -->
 #!/usr/bin/env python3
-"""Validate a generated Unity AI workflow pack (generator v1.3.0).
+"""Validate a generated Unity AI workflow pack (generator v1.4.0).
 
 Usage:
-    python validate_pack.py <repo_root> [pack_dir]
+    python validate_pack.py <repo_root> [pack_dir] [--compile]
 
 pack_dir is relative to repo_root and defaults to docs/ai-workflow.
 Checks mechanical consistency only. It cannot prove that claims are true,
-but it does check that cited paths and symbols exist.
+but it does check that cited paths and symbols exist, that Assets/ has .meta
+files with unique GUIDs, that documented project paths exist, and that a
+sharded session store is present. --compile additionally runs a filtered
+dotnet build through verify_compile.py.
 Exit code: 0 = no errors, 1 = errors, 2 = usage.
 """
+import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import packlib as P  # noqa: E402
+
+SERIALIZED_SUFFIXES = {".unity", ".prefab", ".asset", ".mat", ".controller",
+                       ".overrideController", ".anim", ".playable"}
+DOC_PATH = re.compile(r"(?<![\w./-])((?:Assets|Packages|ProjectSettings)/"
+                      r"[A-Za-z0-9_.\-/]+\.[A-Za-z0-9]+)")
+GUID_LINE = re.compile(r"^guid:\s*([0-9a-fA-F]{32})\s*$", re.M)
+GUID_REF = re.compile(r"m_Script:\s*\{[^}]*guid:\s*([0-9a-fA-F]{32})")
+IGNORED_ASSET = re.compile(r"^\.|~$")
+
+
+def _ignored_asset(name):
+    return bool(IGNORED_ASSET.search(name))
+
+
+def check_sessions(texts, err, warn):
+    names = P.session_names(texts)
+    legacy = P.LEGACY_HANDOFF in texts
+    if not names and not legacy:
+        err.append("missing session state: add sessions/<branch-slug>__<actor-slug>.md "
+                   "(legacy session-handoff.md is accepted but deprecated)")
+        return
+    if legacy:
+        warn.append("session-handoff.md is deprecated; migrate it to "
+                    "sessions/<branch-slug>__<actor-slug>.md")
+    for name in names:
+        if name.count("/") != 1:
+            err.append(f"{name}: session files must live directly under sessions/")
+        base = name.rsplit("/", 1)[-1]
+        if not P.SESSION_NAME.fullmatch(base):
+            err.append(f"{name}: session filename must be <branch-slug>__<actor>.md")
+        for problem in P.session_problems(texts[name]):
+            err.append(f"{name}: {problem}")
+        if re.search(r"\b(passed|failed)\b", texts[name], re.I):
+            warn.append(f"{name}: mentions passed/failed; outcomes belong only in the matrix")
+
+
+def check_assets(root, err, warn):
+    assets = Path(root) / "Assets"
+    if not assets.is_dir():
+        return
+    guids, meta_count = {}, 0
+    for base, dirs, files in os.walk(assets):
+        base_path = Path(base)
+        dirs[:] = sorted(d for d in dirs if not _ignored_asset(d))
+        for d in dirs:
+            path = base_path / d
+            if not Path(str(path) + ".meta").is_file():
+                err.append(f"Assets: missing .meta for folder: "
+                           f"{path.relative_to(Path(root)).as_posix()}")
+        for f in sorted(files):
+            if _ignored_asset(f) or f.endswith(".meta"):
+                continue
+            path = base_path / f
+            if not Path(str(path) + ".meta").is_file():
+                err.append(f"Assets: missing .meta for file: "
+                           f"{path.relative_to(Path(root)).as_posix()}")
+    for meta in sorted(assets.rglob("*.meta")):
+        if any(_ignored_asset(part) for part in meta.relative_to(assets).parts):
+            continue
+        meta_count += 1
+        rel = meta.relative_to(Path(root)).as_posix()
+        target = Path(str(meta)[:-5])
+        if not target.exists():
+            warn.append(f"{rel}: orphan .meta without an asset")
+        try:
+            text = meta.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            err.append(f"{rel}: cannot read .meta: {exc}")
+            continue
+        match = GUID_LINE.search(text)
+        if not match:
+            err.append(f"{rel}: missing a valid 32-character guid")
+            continue
+        guid = match.group(1).lower()
+        if guid in guids:
+            err.append(f"duplicate GUID {guid}: {guids[guid]} and {rel}")
+        else:
+            guids[guid] = rel
+    if meta_count == 0:
+        err.append("Assets: no .meta files found; commit Unity meta files")
+        return
+    known = set(guids)
+    for base, dirs, files in os.walk(assets):
+        dirs[:] = sorted(d for d in dirs if not _ignored_asset(d))
+        for f in sorted(files):
+            path = Path(base) / f
+            if path.suffix not in SERIALIZED_SUFFIXES or _ignored_asset(f):
+                continue
+            try:
+                text = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            rel = path.relative_to(Path(root)).as_posix()
+            for match in GUID_REF.finditer(text):
+                guid = match.group(1).lower()
+                if guid.startswith("0000000000000000") or guid in known:
+                    continue
+                warn.append(f"{rel}: script GUID {guid[:8]}... has no .meta under Assets "
+                            "(may be a package or built-in script)")
+
+
+def check_doc_paths(root, texts, err, warn):
+    root = Path(root)
+    for name, text in texts.items():
+        if name.endswith(".json"):
+            continue
+        scan = P.scan_text(name, text)
+        for number, line in enumerate(scan.splitlines(), 1):
+            if re.search(r"\[(?:C|P|F|V|R|I)-\d{3}", line):
+                continue
+            low = line.lower()
+            if "not inspected" in low or "proposed" in low or "http://" in low or "https://" in low:
+                continue
+            tokens = DOC_PATH.findall(line)
+            for token in tokens:
+                if any(ch in token for ch in "*?<>") or token.endswith((".md", ".json")) and token.startswith("docs/"):
+                    continue
+                if not (root / token).exists():
+                    warn.append(f"{name}:{number}: documented path not found: {token}")
 
 
 def check_index(index, root, defs, profile, err, warn):
@@ -1342,20 +1845,36 @@ def check_index(index, root, defs, profile, err, warn):
                 err.append(f"index.json task_routes {rid}: check {vid} is not defined")
 
     listed = {d["path"].split("/")[-1] for d in docs if isinstance(d.get("path"), str)}
-    needed = ["agent.md", "project-context.md", "validation-matrix.md", "session-handoff.md"]
+    needed = ["agent.md", "project-context.md", "validation-matrix.md"]
     if profile in ("standard", "extended"):
         needed += ["README.md", "development-workflow.md"]
     for n in needed:
         if n not in listed:
             warn.append(f"index.json documents does not list {n}")
+    if "sessions" not in listed and "session-handoff.md" not in listed:
+        warn.append("index.json documents does not list the session store "
+                    "(sessions/ or legacy session-handoff.md)")
 
 
 def main(argv):
-    if len(argv) < 2:
-        print(__doc__)
-        return 2
-    root = Path(argv[1]).resolve()
-    pack = (root / argv[2]).resolve() if len(argv) > 2 else root / "docs" / "ai-workflow"
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+    ap = argparse.ArgumentParser(description="Validate a generated Unity AI workflow pack")
+    ap.add_argument("root")
+    ap.add_argument("pack", nargs="?", default="docs/ai-workflow")
+    ap.add_argument("--compile", action="store_true",
+                    help="also run a filtered dotnet build (verify_compile.py)")
+    args = ap.parse_args(argv[1:])
+    root = Path(args.root).resolve()
+    pack = (root / args.pack).resolve()
+    try:
+        pack.relative_to(root)
+    except ValueError:
+        print(f"pack directory must be inside the repository: {pack}", file=sys.stderr)
+        return 1
     err, warn = [], []
     texts = P.read_pack(root, pack)
 
@@ -1375,12 +1894,13 @@ def main(argv):
         if profile not in P.PROFILES:
             err.append(f"index.json profile must be one of {sorted(P.PROFILES)}")
 
-    required = ["agent.md", "project-context.md", "validation-matrix.md", "session-handoff.md"]
+    required = ["agent.md", "project-context.md", "validation-matrix.md"]
     if profile in ("standard", "extended"):
         required += ["README.md", "development-workflow.md"]
     for n in required:
         if n not in texts:
             err.append(f"missing required file: {n} (profile '{profile}')")
+    check_sessions(texts, err, warn)
 
     for name, text in texts.items():
         if "REPLACE_ME" in text:
@@ -1559,16 +2079,29 @@ def main(argv):
         if stat in ("passed", "failed") and obs in ("", "none", "n/a", "none yet", "-"):
             err.append(f"check {vid}: Status '{stat}' requires an observed result and evidence location")
 
-    # ---- handoff -----------------------------------------------------------
-    ho = texts.get("session-handoff.md", "")
-    if "see validation matrix" not in ho.lower():
-        err.append("session-handoff.md must say 'see validation matrix' instead of restating outcomes")
-    elif re.search(r"\b(passed|failed)\b", ho, re.I):
-        warn.append("session-handoff.md mentions passed/failed; outcomes belong only in the matrix")
+    # ---- Unity assets, GUIDs, and documented project paths -----------------
+    check_assets(root, err, warn)
+    check_doc_paths(root, texts, err, warn)
 
     # ---- index -------------------------------------------------------------
     if isinstance(index, dict):
         check_index(index, root, defs, profile, err, warn)
+
+    # ---- optional compiler bridge -----------------------------------------
+    compile_result = None
+    if args.compile:
+        try:
+            import verify_compile as V
+        except ImportError as exc:
+            err.append(f"--compile unavailable: {exc}")
+        else:
+            compile_result = V.run_compile(root)
+            for line in V.summarize(compile_result):
+                print(line)
+            if compile_result["status"] == "failed":
+                err.append(f"C# compilation failed ({len(compile_result['errors'])} errors)")
+            elif compile_result["status"] in ("no_project", "dotnet_missing", "error"):
+                warn.append(f"C# compilation not verified: {compile_result['status']}")
 
     for w in warn:
         print(f"WARN  {w}")
@@ -1584,31 +2117,103 @@ if __name__ == "__main__":
 
 <!-- BEGIN file: tools/suspects.py -->
 #!/usr/bin/env python3
-"""Compute suspect claims for Refresh mode (generator v1.3.0).
+"""Compute suspect claims for Refresh mode (generator v1.4.0).
 
 Usage:
     python suspects.py <repo_root> [--pack DIR] (--since REV | --changed PATH [PATH ...])
-                       [--trigger TOKEN ...] [--json]
+                       [--trigger TOKEN ...] [--json] [--no-references]
 
 --since REV     tracked changes against REV plus untracked, nonignored files
 --changed ...   explicit repository-relative paths (use when git is unavailable)
 --trigger TOKEN also mark every claim whose invalidates: list contains TOKEN
                 (e.g. package_or_unity_version_changed)
+--no-references skip the changed-type -> referencing-file scan
 
 A claim is suspect when its path changed (or its .meta changed, or a file under
 its directory changed, or the path no longer exists), when it carries a fired
-trigger, or when it depends (transitively) on a suspect claim.
+trigger, or when it depends (transitively) on a suspect claim. Changed C# type
+definitions also pull in files that reference those types, so the agent sees
+likely call sites without a whole-repository search.
 This tool only reads. It never edits the pack or resets check statuses;
 the agent decides what to reset after reviewing the output.
 """
 import argparse
 import json
+import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import packlib as P  # noqa: E402
+
+SKIP_DIRS = {".git", "Library", "Temp", "Obj", "Logs", "Builds", "UserSettings",
+             "node_modules", ".idea", ".vs", ".vscode", "PackageCache"}
+TYPE_DEF = re.compile(r"\b(?:class|struct|interface|enum|record)\s+([A-Za-z_]\w*)")
+MAX_REFERENCE_FILES = 4000
+MAX_REFERENCE_BYTES = 512 * 1024
+
+
+def cs_symbols(path):
+    """Type names declared by one C# file (empty when unreadable)."""
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return set()
+    return {name for name in TYPE_DEF.findall(text) if len(name) >= 3}
+
+
+def reference_scan(root, changed):
+    """Map files that mention types declared in changed C# files to those types."""
+    root = Path(root)
+    changed = set(changed)
+    types, origins = set(), {}
+    for rel in sorted(changed):
+        if not rel.endswith(".cs"):
+            continue
+        path = root / rel
+        if not path.is_file():
+            continue
+        names = cs_symbols(path)
+        types.update(names)
+        for name in names:
+            origins.setdefault(name, rel)
+    notes = {"capped": False, "skipped_large": 0}
+    if not types:
+        return {}, set(), origins, notes
+    pattern = re.compile(r"\b(?:" + "|".join(sorted(map(re.escape, types))) + r")\b")
+    hits, scanned = {}, 0
+    for base, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not d.startswith("."))
+        for name in sorted(files):
+            if not name.endswith(".cs"):
+                continue
+            path = Path(base) / name
+            try:
+                rel = path.relative_to(root).as_posix()
+            except ValueError:
+                continue
+            if rel in changed:
+                continue
+            try:
+                if path.stat().st_size > MAX_REFERENCE_BYTES:
+                    notes["skipped_large"] += 1
+                    continue
+                text = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            scanned += 1
+            if scanned > MAX_REFERENCE_FILES:
+                notes["capped"] = True
+                break
+            found = sorted(set(pattern.findall(text)) & types)
+            if found:
+                hits[rel] = found
+        if scanned > MAX_REFERENCE_FILES:
+            notes["capped"] = True
+            break
+    return hits, set(hits), origins, notes
 
 
 def git_changed(root, rev):
@@ -1629,6 +2234,11 @@ def git_changed(root, rev):
 
 
 def main(argv):
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     ap = argparse.ArgumentParser(description="Suspect-claim calculator for Refresh mode")
     ap.add_argument("root")
     ap.add_argument("--pack", default="docs/ai-workflow")
@@ -1636,11 +2246,18 @@ def main(argv):
     g.add_argument("--since")
     g.add_argument("--changed", nargs="+")
     ap.add_argument("--trigger", action="append", default=[])
+    ap.add_argument("--no-references", action="store_true",
+                    help="skip the changed-type referencing-file scan")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv[1:])
 
     root = Path(a.root).resolve()
-    pack = root / a.pack
+    pack = (root / a.pack).resolve() if not Path(a.pack).is_absolute() else Path(a.pack).resolve()
+    try:
+        pack.relative_to(root)
+    except ValueError:
+        print(f"pack directory must be inside the repository: {pack}", file=sys.stderr)
+        return 2
     texts = P.read_pack(root, pack)
     claims = P.parse_claims(texts)
     if not claims:
@@ -1660,6 +2277,11 @@ def main(argv):
             c = c[2:]
         return c
     changed = {norm(c) for c in changed}
+    references, reference_files, origins = {}, set(), {}
+    reference_notes = {"capped": False, "skipped_large": 0}
+    if not a.no_references:
+        references, reference_files, origins, reference_notes = reference_scan(root, changed)
+        changed |= reference_files
     # Index ancestors once instead of scanning every changed path for every claim.
     ancestors = set()
     for path in changed:
@@ -1719,6 +2341,9 @@ def main(argv):
 
     result = {
         "changed_files": sorted(changed),
+        "symbol_references": {k: references[k] for k in sorted(references)},
+        "reference_types": {k: origins[k] for k in sorted(origins)},
+        "reference_scan": reference_notes,
         "direct": {k: direct[k] for k in sorted(direct)},
         "transitive": {k: f"depends on {transitive[k]}" for k in sorted(transitive)},
         "findings_to_recheck": sorted(findings),
@@ -1730,6 +2355,9 @@ def main(argv):
         print(json.dumps(result, indent=2))
         return 0
     print(f"changed files: {len(changed)}")
+    if references:
+        print(f"symbol references: {len(references)} file(s) mention changed types: "
+              + ", ".join(sorted(origins)))
     print(f"suspect claims: {len(suspect)} ({len(direct)} direct, {len(transitive)} via deps)")
     for k in sorted(direct):
         print(f"  {k}  direct     {direct[k]}  [{claims[k]['label']}]  {claims[k]['path']}")
@@ -1747,14 +2375,24 @@ if __name__ == "__main__":
 
 <!-- BEGIN file: tools/context.py -->
 #!/usr/bin/env python3
-"""Print a route list or a bounded task context from a generated workflow pack.
+"""Print a route list, a bounded task context, or a token-lean source excerpt.
 
-Usage: python context.py ROOT [--pack DIR] [--route R-001] [--max-chars 16000]
-Repeat --route to select multiple routes. No source files are read or modified.
+Usage:
+    python context.py ROOT [--pack DIR] [--route R-001] [--max-chars 16000]
+    python context.py ROOT --file Assets/Scripts/Game/Health.cs [--skeleton]
+    python context.py ROOT --file Assets/Scripts/Game/Health.cs --method TakeDamage
+    python context.py ROOT --file Assets/Scenes/Dev.unity
+
+Repeat --route to select multiple routes. C# files print a skeleton (using,
+types, serialized/public fields, signatures, XML docs); --method prints full
+bodies. Unity .unity/.prefab files print a condensed GameObject hierarchy.
+Sessions load from sessions/<branch-slug>__<actor-slug>.md: the active branch in full,
+other branches as five-line headers. No files are modified.
 Read applicable AGENTS.md instructions and agent.md before using this excerpt.
 Exit 0 = success, 1 = invalid selection/pack, 2 = context exceeds the output budget.
 """
 import argparse
+import math
 import re
 import sys
 from pathlib import Path
@@ -1763,7 +2401,594 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import packlib as P
 
 
-def select(texts, route_ids):
+# ---------------------------------------------------------------------------
+# C# skeleton extraction (standard library only)
+# ---------------------------------------------------------------------------
+
+TYPE_DECL = re.compile(r"\b(class|struct|interface|enum|record)\s+([A-Za-z_]\w*)")
+CONTROL = {"if", "for", "foreach", "while", "switch", "using", "lock", "catch",
+           "fixed", "checked", "unchecked", "do", "else", "try"}
+
+
+def _mask_csharp(text):
+    """Blank comments and string literals while preserving offsets and newlines."""
+    out = list(text)
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+        if c == "/" and nxt == "/":
+            while i < n and text[i] != "\n":
+                out[i] = " "
+                i += 1
+            continue
+        if c == "/" and nxt == "*":
+            out[i] = out[i + 1] = " "
+            i += 2
+            while i < n and not (text[i] == "*" and i + 1 < n and text[i + 1] == "/"):
+                if text[i] != "\n":
+                    out[i] = " "
+                i += 1
+            if i < n:
+                out[i] = " "
+                if i + 1 < n:
+                    out[i + 1] = " "
+                i += 2
+            continue
+        if text.startswith('"""', i):
+            q = 0
+            while i + q < n and text[i + q] == '"':
+                q += 1
+            for k in range(q):
+                out[i + k] = " "
+            i += q
+            while i < n:
+                if text.startswith('"' * q, i):
+                    for k in range(q):
+                        out[i + k] = " "
+                    i += q
+                    break
+                if text[i] != "\n":
+                    out[i] = " "
+                i += 1
+            continue
+        if c == '"':
+            verbatim = i > 0 and text[i - 1] == "@"
+            out[i] = " "
+            i += 1
+            while i < n:
+                if verbatim and text[i] == '"' and i + 1 < n and text[i + 1] == '"':
+                    out[i] = out[i + 1] = " "
+                    i += 2
+                    continue
+                if not verbatim and text[i] == "\\" and i + 1 < n:
+                    out[i] = out[i + 1] = " "
+                    i += 2
+                    continue
+                if text[i] == '"':
+                    out[i] = " "
+                    i += 1
+                    break
+                if text[i] != "\n":
+                    out[i] = " "
+                i += 1
+            continue
+        if c == "'":
+            out[i] = " "
+            i += 1
+            while i < n:
+                if text[i] == "\\" and i + 1 < n:
+                    out[i] = out[i + 1] = " "
+                    i += 2
+                    continue
+                if text[i] == "'":
+                    out[i] = " "
+                    i += 1
+                    break
+                if text[i] != "\n":
+                    out[i] = " "
+                i += 1
+            continue
+        i += 1
+    return "".join(out)
+
+
+def _line_start(text, index):
+    return text.rfind("\n", 0, index) + 1
+
+
+def _doc_start(text, index, floor=0):
+    """Start of the contiguous /// block immediately above a declaration."""
+    start = _line_start(text, index)
+    if start < floor:
+        return index
+    while start > 0:
+        prev_end = start - 1
+        prev_start = _line_start(text, prev_end)
+        line = text[prev_start:prev_end].strip()
+        if line.startswith("///"):
+            start = prev_start
+        else:
+            break
+    return start
+
+
+def _skip_ws(masked, i):
+    n = len(masked)
+    while i < n and masked[i].isspace():
+        i += 1
+    return i
+
+
+def _match_brace(masked, open_index):
+    depth = 0
+    for i in range(open_index, len(masked)):
+        if masked[i] == "{":
+            depth += 1
+        elif masked[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+    return None
+
+
+def _visibility(header):
+    h = re.sub(r"\[[^\]]*\]", " ", header)
+    for word in ("public", "protected", "internal", "private"):
+        if re.search(r"\b" + word + r"\b", h):
+            return word
+    return "private"
+
+
+def _is_serialized(header):
+    return bool(re.search(r"\[\s*(?:field:\s*)?(?:SerializeField|SerializeReference)\b", header))
+
+
+def _method_name(header):
+    m = re.search(r"([A-Za-z_]\w*)\s*(?:<[^>{}()]*>)?\s*\(", header)
+    if m:
+        return m.group(1)
+    return "(anonymous)"
+
+
+def _field_name(header):
+    m = re.search(r"([A-Za-z_]\w*)\s*(?:=[^;]*)?;\s*$", header)
+    return m.group(1) if m else "?"
+
+
+def _accessors(text, open_index, close_index):
+    body = _mask_csharp(text[open_index + 1:close_index])
+    names = []
+    for m in re.finditer(r"((?:(?:public|protected|internal|private)\s+)?(?:get|set|init))\b", body):
+        names.append(m.group(1).strip())
+    return "{ " + " ".join(n + ";" for n in names) + " }" if names else "{ ... }"
+
+
+def _scan_csharp(text):
+    masked = _mask_csharp(text)
+    records = []
+
+    def scan(start, end, mode, in_interface=False):
+        out = []
+        i = start
+        while i < end:
+            i = _skip_ws(masked, i)
+            if i >= end:
+                break
+            if masked[i] == "#":
+                nl = masked.find("\n", i)
+                i = end if nl == -1 else nl + 1
+                continue
+            seg_start = i
+            j = i
+            paren = bracket = 0
+            term, open_index = None, None
+            while j < end:
+                c = masked[j]
+                if c == "(":
+                    paren += 1
+                elif c == ")":
+                    paren = max(0, paren - 1)
+                elif c == "[":
+                    bracket += 1
+                elif c == "]":
+                    bracket = max(0, bracket - 1)
+                elif paren == 0 and bracket == 0 and c == ";":
+                    term = ";"
+                    break
+                elif paren == 0 and bracket == 0 and c == "{":
+                    open_index = j
+                    break
+                j += 1
+
+            if term == ";":
+                header = text[seg_start:j + 1]
+                h = masked[seg_start:j].strip()
+                if re.match(r"(?:global\s+)?using\b", h):
+                    kind, name = "using", ""
+                elif re.match(r"\[assembly:", h):
+                    kind, name = "assembly", ""
+                elif re.search(r"\bnamespace\b", h):
+                    kind, name = "namespace-file", ""
+                elif re.match(r"delegate\b|.*\bdelegate\b", h):
+                    kind = "delegate"
+                    name = _method_name(h)
+                elif "=>" in h and _method_name(h) != "(anonymous)":
+                    kind = "method-expression"
+                    name = _method_name(h)
+                elif "=>" in h:
+                    kind, name = "property-expression", ""
+                elif "(" in h:
+                    kind = "method-decl"
+                    name = _method_name(h)
+                else:
+                    kind, name = "field", _field_name(h)
+                out.append({"kind": kind, "name": name, "doc_start": _doc_start(text, seg_start, start),
+                            "decl_start": seg_start, "sig_end": j + 1, "body_open": None,
+                            "body_close": None, "header": header, "children": [],
+                            "interface": in_interface})
+                i = j + 1
+                continue
+
+            if open_index is None:
+                break
+            close = _match_brace(masked, open_index)
+            if close is None or close > end:
+                close = end - 1
+            header = masked[seg_start:open_index]
+            h = header.strip()
+            type_match = TYPE_DECL.search(header)
+            if type_match:
+                kind = "enum" if type_match.group(1) == "enum" else "type"
+                rec = {"kind": kind, "name": type_match.group(2),
+                       "doc_start": _doc_start(text, seg_start, start), "decl_start": seg_start,
+                       "sig_end": open_index, "body_open": open_index, "body_close": close,
+                       "header": header, "children": [], "interface": in_interface}
+                if kind != "enum":
+                    rec["children"] = scan(open_index + 1, close, "type",
+                                             type_match.group(1) == "interface")
+                out.append(rec)
+            elif re.search(r"\bnamespace\b", h):
+                rec = {"kind": "namespace", "name": "", "doc_start": _doc_start(text, seg_start, start),
+                       "decl_start": seg_start, "sig_end": open_index, "body_open": open_index,
+                       "body_close": close, "header": header, "children": [],
+                       "interface": in_interface}
+                rec["children"] = scan(open_index + 1, close, "namespace", in_interface)
+                out.append(rec)
+            elif "(" in h and not re.match(r"(?:" + "|".join(CONTROL) + r")\b", h):
+                out.append({"kind": "method", "name": _method_name(h),
+                            "doc_start": _doc_start(text, seg_start, start), "decl_start": seg_start,
+                            "sig_end": open_index, "body_open": open_index, "body_close": close,
+                            "header": header, "children": [], "interface": in_interface})
+            elif "=>" in h:
+                out.append({"kind": "property-expression", "name": "",
+                            "doc_start": _doc_start(text, seg_start, start), "decl_start": seg_start,
+                            "sig_end": open_index, "body_open": open_index, "body_close": close,
+                            "header": header, "children": [], "interface": in_interface})
+            else:
+                out.append({"kind": "property", "name": "",
+                            "doc_start": _doc_start(text, seg_start, start), "decl_start": seg_start,
+                            "sig_end": open_index, "body_open": open_index, "body_close": close,
+                            "header": header, "children": [], "interface": in_interface})
+            i = close + 1
+        return out
+
+    records = scan(0, len(text), "file")
+    return text, masked, records
+
+
+def _include_record(rec):
+    if rec["kind"] in ("using", "namespace-file", "namespace", "type", "enum",
+                       "method", "method-decl", "method-expression"):
+        return True
+    if rec.get("interface"):
+        return True
+    visibility = _visibility(rec["header"])
+    return visibility in ("public", "protected") or _is_serialized(rec["header"])
+
+
+def _render_csharp(rec, text):
+    start = rec["doc_start"]
+    if rec["kind"] in ("enum",):
+        return text[start:rec["body_close"] + 1].rstrip()
+    if rec["kind"] in ("type", "namespace"):
+        head = text[start:rec["body_open"]].rstrip()
+        indent = " " * (rec["decl_start"] - _line_start(text, rec["decl_start"]))
+        inner = [_render_csharp(child, text) for child in rec["children"] if _include_record(child)]
+        body = "\n".join(part for part in inner if part)
+        return head + " {\n" + body + "\n" + indent + "}" if body else head + " { }"
+    if rec["kind"] == "method":
+        return text[start:rec["body_open"]].rstrip() + " { ... }"
+    if rec["kind"] == "property":
+        return (text[start:rec["body_open"]].rstrip() + " "
+                + _accessors(text, rec["body_open"], rec["body_close"]))
+    return text[start:rec["sig_end"]].rstrip()
+
+
+def csharp_skeleton(text):
+    """Signatures, fields, attributes, and XML docs; implementation bodies omitted."""
+    _, _, records = _scan_csharp(text)
+    return "\n".join(part for part in (_render_csharp(r, text) for r in records
+                                       if _include_record(r)) if part)
+
+
+def _method_slice(rec, text):
+    if rec.get("body_close") is not None:
+        return text[rec["doc_start"]:rec["body_close"] + 1].rstrip()
+    return text[rec["doc_start"]:rec["sig_end"]].rstrip()
+
+
+def csharp_methods(text, methods):
+    """Full implementation slices for the requested method names (overloads included)."""
+    _, _, records = _scan_csharp(text)
+    wanted = {m.rsplit(".", 1)[-1] for m in methods}
+    found, names = [], set()
+
+    def walk(items):
+        for rec in items:
+            if rec["kind"] in ("method", "method-decl", "method-expression") and rec["name"] in wanted:
+                found.append(_method_slice(rec, text))
+                names.add(rec["name"])
+            walk(rec["children"])
+
+    walk(records)
+    missing = sorted(wanted - names)
+    if missing:
+        raise ValueError("method(s) not found: " + ", ".join(missing))
+    return "\n\n".join(found)
+
+
+# ---------------------------------------------------------------------------
+# Unity YAML condenser (.unity / .prefab)
+# ---------------------------------------------------------------------------
+
+UNITY_DOC = re.compile(r"^--- !u!(\d+) &(-?\d+)(?: stripped)?\s*$", re.M)
+
+
+def _yaml_key(body, key):
+    m = re.search(r"^  " + re.escape(key) + r":\s*(.*)$", body, re.M)
+    return m.group(1).strip() if m else None
+
+
+def _yaml_file_ids(body, key):
+    m = re.search(r"^  " + re.escape(key) + r":\s*\n((?:  - .*\n?)*)", body, re.M)
+    return re.findall(r"fileID:\s*(-?\d+)", m.group(1)) if m else []
+
+
+def _yaml_vec(value, keys):
+    if not value:
+        return None
+    if value.startswith("{"):
+        out = []
+        for k in keys:
+            m = re.search(r"\b" + k + r":\s*(-?[\d.eE+]+)", value)
+            out.append(m.group(1).rstrip(".") if m else "0")
+        return ", ".join(out)
+    return value
+
+
+def _num(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _quat_euler(value):
+    if not value:
+        return "0, 0, 0"
+    parts = {}
+    for k in ("x", "y", "z", "w"):
+        m = re.search(r"\b" + k + r":\s*(-?[\d.eE+-]+)", value)
+        parts[k] = _num(m.group(1)) if m else 0.0
+    x, y, z, w = parts["x"], parts["y"], parts["z"], parts["w"]
+    sinr = 2 * (w * x + y * z)
+    cosr = 1 - 2 * (x * x + y * y)
+    roll = math.degrees(math.atan2(sinr, cosr))
+    sinp = 2 * (w * y - z * x)
+    pitch = math.degrees(math.asin(max(-1.0, min(1.0, sinp))))
+    siny = 2 * (w * z + x * y)
+    cosy = 1 - 2 * (y * y + z * z)
+    yaw = math.degrees(math.atan2(siny, cosy))
+    def fmt(v):
+        return f"{round(v, 1):g}"
+    return ", ".join(fmt(v) for v in (pitch, yaw, roll))
+
+
+def _script_guids(root):
+    mapping = {}
+    for base in (Path(root) / "Assets", Path(root) / "Packages"):
+        if not base.is_dir():
+            continue
+        for meta in base.rglob("*.cs.meta"):
+            try:
+                text = meta.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            m = re.search(r"^guid:\s*([0-9a-fA-F]{32})\s*$", text, re.M)
+            if m:
+                mapping[m.group(1).lower()] = meta.name[:-5]
+    return mapping
+
+
+def _parse_unity_docs(text):
+    matches = list(UNITY_DOC.finditer(text))
+    docs = []
+    for i, match in enumerate(matches):
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        body = text[match.end():end]
+        first = next((line for line in body.splitlines() if line.strip()), "")
+        type_name = first.split(":", 1)[0].strip() if ":" in first else ""
+        docs.append({"class_id": match.group(1), "anchor": match.group(2),
+                     "type": type_name, "body": body})
+    return docs
+
+
+def _script_name(script_guids, value):
+    if not value:
+        return None, None
+    m = re.search(r"guid:\s*([0-9a-fA-F]{32})", value)
+    guid = m.group(1).lower() if m else None
+    return (script_guids.get(guid) if guid else None), guid
+
+
+def _field_lines(body):
+    """Serialized (non-m_) scalar fields for a MonoBehaviour document."""
+    fields = []
+    for m in re.finditer(r"^  ([A-Za-z_]\w*):[ \t]*(.*)$", body, re.M):
+        key, value = m.group(1), m.group(2).strip()
+        if key.startswith("m_") or not value or value in ("[]", "{}"):
+            continue
+        if value.startswith("["):
+            continue
+        fields.append((key, value))
+    return fields
+
+
+def unity_summary(root, path):
+    """Compact GameObject/Transform/MonoBehaviour hierarchy for a scene or prefab."""
+    root = Path(root)
+    text = path.read_text(encoding="utf-8", errors="replace")
+    docs = _parse_unity_docs(text)
+    if not docs:
+        return f"[Unity YAML without documents: {path.name}]"
+    script_guids = _script_guids(root)
+
+    gameobjects, transforms, behaviours, by_anchor = {}, {}, {}, {}
+    for doc in docs:
+        anchor, body = doc["anchor"], doc["body"]
+        by_anchor[anchor] = doc
+        if doc["type"] == "GameObject":
+            gameobjects[anchor] = {
+                "name": (_yaml_key(body, "m_Name") or "").strip("'\"") or "(unnamed)",
+                "active": _yaml_key(body, "m_IsActive") != "0",
+                "tag": (_yaml_key(body, "m_TagString") or "Untagged").strip("'\""),
+                "components": _yaml_file_ids(body, "m_Component"),
+            }
+        elif doc["type"] == "Transform":
+            parent = _yaml_key(body, "m_Father") or ""
+            pm = re.search(r"fileID:\s*(-?\d+)", parent)
+            transforms[anchor] = {
+                "go": (re.search(r"fileID:\s*(-?\d+)", _yaml_key(body, "m_GameObject") or "") or [None, None])[1],
+                "parent": pm.group(1) if pm else "0",
+                "children": _yaml_file_ids(body, "m_Children"),
+                "pos": _yaml_vec(_yaml_key(body, "m_LocalPosition"), ("x", "y", "z")),
+                "rot": _quat_euler(_yaml_key(body, "m_LocalRotation")),
+                "scale": _yaml_vec(_yaml_key(body, "m_LocalScale"), ("x", "y", "z")),
+            }
+        elif doc["type"] == "MonoBehaviour":
+            go = re.search(r"fileID:\s*(-?\d+)", _yaml_key(body, "m_GameObject") or "")
+            script, guid = _script_name(script_guids, _yaml_key(body, "m_Script"))
+            behaviours.setdefault(go.group(1) if go else None, []).append({
+                "script": script, "guid": guid, "fields": _field_lines(body)})
+
+    def name_of_fileid(file_id):
+        doc = by_anchor.get(file_id)
+        if not doc:
+            return None
+        if doc["type"] == "GameObject":
+            return gameobjects.get(file_id, {}).get("name")
+        if doc["type"] in ("Transform", "MonoBehaviour"):
+            go = re.search(r"fileID:\s*(-?\d+)", _yaml_key(doc["body"], "m_GameObject") or "")
+            return gameobjects.get(go.group(1), {}).get("name") if go else None
+        return None
+
+    go_transform = {t["go"]: a for a, t in transforms.items() if t["go"]}
+    roots = []
+    for anchor, t in transforms.items():
+        if t["parent"] in ("0", "") or t["parent"] not in transforms:
+            if t["go"] in gameobjects:
+                roots.append(t["go"])
+    for go in gameobjects:
+        if go not in roots and go not in go_transform:
+            roots.append(go)
+
+    def render_field(value):
+        m = re.fullmatch(r"\{fileID:\s*(-?\d+)\}", value)
+        if m:
+            target = name_of_fileid(m.group(1))
+            return f"-> {target}" if target else f"-> #{m.group(1)}"
+        if len(value) > 60:
+            return value[:57] + "..."
+        return value
+
+    def render_component(go, transform_anchor):
+        entries = []
+        t = transforms.get(transform_anchor) if transform_anchor else None
+        if t:
+            entries.append(f"Transform (Pos: {t['pos'] or '?'} | Rot: {t['rot']} "
+                           f"| Scale: {t['scale'] or '?'})")
+        for mono in behaviours.get(go, []):
+            label = mono["script"] or f"<script {mono['guid'][:8] + '…' if mono['guid'] else '?'}>"
+            details = []
+            if mono["guid"]:
+                details.append("guid: " + mono["guid"][:8])
+            fields = mono["fields"][:8]
+            details += [f"{k}: {render_field(v)}" for k, v in fields]
+            if len(mono["fields"]) > len(fields):
+                details.append(f"... +{len(mono['fields']) - len(fields)} fields")
+            suffix = " (" + ", ".join(details) + ")" if details else ""
+            entries.append(f"MonoBehaviour: {label}{suffix}")
+        return entries
+
+    def render_go(go, prefix, last):
+        g = gameobjects[go]
+        branch = "└──" if last else "├──"
+        pad = "    " if last else "│   "
+        lines = [f"{prefix}{branch} GameObject: {g['name']} "
+                 f"(Active: {'true' if g['active'] else 'false'}, Tag: {g['tag']})"]
+        transform_anchor = go_transform.get(go)
+        children = transforms[transform_anchor]["children"] if transform_anchor else []
+        child_gos = [transforms[c]["go"] for c in children if c in transforms and transforms[c]["go"]]
+        entries = render_component(go, transform_anchor)
+        for i, entry in enumerate(entries):
+            tail = "└──" if i == len(entries) - 1 and not child_gos else "├──"
+            lines.append(f"{prefix}{pad}{tail} {entry}")
+        for i, child in enumerate(child_gos):
+            lines += render_go(child, prefix + pad, i == len(child_gos) - 1)
+        return lines
+
+    label = "Scene" if path.suffix == ".unity" else "Prefab"
+    seen = set()
+    lines = [f"[{label}: {path.relative_to(root.resolve()).as_posix()}]"]
+    ordered = [go for go in roots if go in gameobjects]
+    for i, go in enumerate(ordered):
+        if go in seen:
+            continue
+        seen.add(go)
+        lines += render_go(go, "", i == len(ordered) - 1)
+    if len(lines) == 1:
+        lines.append("(no GameObject hierarchy found)")
+    return "\n".join(lines)
+
+
+def project_file(root, name):
+    root = Path(root).resolve()
+    path = Path(name)
+    path = (root / path).resolve() if not path.is_absolute() else path.resolve()
+    try:
+        path.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"file is outside the repository: {name}") from exc
+    if not path.is_file():
+        raise ValueError(f"file not found: {name}")
+    return path
+
+
+def file_context(root, name, methods=None):
+    path = project_file(root, name)
+    rel = path.relative_to(Path(root).resolve()).as_posix()
+    if path.suffix == ".cs":
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if methods:
+            return f"# Full method context: {rel}\n\n" + csharp_methods(text, methods)
+        return f"# C# skeleton: {rel}\n\n" + csharp_skeleton(text)
+    if path.suffix in (".unity", ".prefab"):
+        return unity_summary(root, path)
+    raise ValueError("--file supports .cs, .unity, and .prefab files")
+
+
+def select(texts, route_ids, session_branch=None, session_actor=None, include_sessions=True):
     def block(identifier, name, body):
         heading = re.search(r"^#{2,4}[ \t]+" + re.escape(identifier) + r"\b[^\n]*",
                             P.scan_text(name, texts[name]), re.M)
@@ -1838,26 +3063,83 @@ def select(texts, route_ids):
 
     intro = (
         "# Selected task context\n\n"
-        "Read applicable AGENTS.md and agent.md first; resume work also reads session-handoff.md.\n"
+        "Read applicable AGENTS.md and agent.md first; resume work also reads the active "
+        "sessions/<branch-slug>__<actor-slug>.md file.\n"
         "This is an excerpt, not a new source of truth. Check freshness before relying on claims.\n"
         "Other routes, increments, contracts, and uninspected source are not included.\n"
         "Follow referenced IDs outside this excerpt in their canonical files when needed.\n"
     )
-    return intro + "".join(f"\n<!-- {name} -->\n{body}\n" for _, name, body in selected)
+    sessions = ""
+    if include_sessions:
+        state = P.session_context(texts, session_branch, session_actor)
+        if state:
+            sessions = "\n## Session state\n\n" + state + "\n"
+    return intro + sessions + "".join(f"\n<!-- {name} -->\n{body}\n" for _, name, body in selected)
+
+
+def build_output(root, pack="docs/ai-workflow", routes=None, file=None, methods=None,
+                 include_sessions=True, branch=None, actor=None):
+    """Shared by the CLI and the MCP server; returns the bounded-context text."""
+    root = Path(root).resolve()
+    pack_path = (root / pack).resolve() if not Path(pack).is_absolute() else Path(pack).resolve()
+    try:
+        pack_path.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"pack directory must be inside the repository: {pack}") from exc
+    texts = P.read_pack(root, pack_path)
+    parts = []
+    routes = [routes] if isinstance(routes, str) else list(routes or [])
+    methods = [methods] if isinstance(methods, str) else list(methods or [])
+    if routes or not file:
+        parts.append(select(texts, routes,
+                            session_branch=branch or P.current_branch(root),
+                            session_actor=actor or P.current_actor(root),
+                            include_sessions=include_sessions))
+    if file:
+        file_text = file_context(root, file, methods)
+        if include_sessions:
+            state = P.session_context(texts, branch or P.current_branch(root),
+                                      actor or P.current_actor(root))
+            if state:
+                file_text = "## Session state\n\n" + state + "\n\n" + file_text
+        if parts:
+            parts.append("")
+        parts.append(file_text)
+    return "\n".join(parts).lstrip("\n")
 
 
 def main(argv):
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("root")
     ap.add_argument("--pack", default="docs/ai-workflow")
     ap.add_argument("--route", action="append", default=[])
+    ap.add_argument("--file", help=".cs skeleton, or condensed .unity/.prefab hierarchy")
+    ap.add_argument("--method", action="append", default=[],
+                    help="with --file .cs: print these method bodies instead of the skeleton")
+    ap.add_argument("--skeleton", action="store_true",
+                    help="explicitly request skeleton mode (the default for .cs)")
+    ap.add_argument("--no-sessions", action="store_true", help="omit session state")
+    ap.add_argument("--branch", help="override branch detection for session selection")
+    ap.add_argument("--actor", help="override actor detection for session selection")
     ap.add_argument("--max-chars", type=int, default=16000)
     args = ap.parse_args(argv[1:])
     if args.max_chars < 1:
         ap.error("--max-chars must be positive")
+    if args.method and not args.file:
+        ap.error("--method requires --file")
+    if args.skeleton and not args.file:
+        ap.error("--skeleton requires --file")
+    if args.skeleton and Path(args.file).suffix != ".cs":
+        ap.error("--skeleton only applies to .cs files")
     root = Path(args.root).resolve()
     try:
-        output = select(P.read_pack(root, root / args.pack), args.route)
+        output = build_output(root, args.pack, args.route, args.file, args.method,
+                              not args.no_sessions, args.branch, args.actor)
     except (ValueError, OSError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
@@ -1873,3 +3155,856 @@ def main(argv):
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
 <!-- END file: tools/context.py -->
+
+<!-- BEGIN file: tools/verify_compile.py -->
+#!/usr/bin/env python3
+"""Fast, token-lean C# compile check through `dotnet build`.
+
+Usage:
+    python verify_compile.py <repo_root> [--project PATH] [--timeout SECONDS] [--json]
+
+Finds a .sln/.csproj (prefer .sln at the shallowest depth), runs
+`dotnet build --no-restore -v q`, and prints only C# diagnostics. A successful
+build prints exactly `COMPILE_STATUS: OK (0 errors)` instead of the full log.
+This is a source-level compiler check; it does not replace a Unity import or a
+real scene/build verification.
+
+Exit codes: 0 = ok, 1 = compile errors, 2 = no/ambiguous project,
+3 = dotnet unavailable, 4 = timeout.
+"""
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+SKIP_DIRS = {".git", "Library", "Temp", "Obj", "Logs", "Builds", "UserSettings",
+             "node_modules", ".idea", ".vs", ".vscode", "PackageCache"}
+DIAGNOSTIC = re.compile(r"\b(error|warning)\s+(CS\d{4})\b")
+MAX_ERRORS = 40
+MAX_WARNINGS = 10
+
+
+def find_projects(root):
+    root = Path(root).resolve()
+    found = []
+    for base, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not d.startswith("."))
+        for name in sorted(files):
+            if name.endswith((".sln", ".csproj")):
+                path = Path(base) / name
+                try:
+                    rel = path.relative_to(root).as_posix()
+                except ValueError:
+                    continue
+                found.append((len(Path(rel).parts), rel, path))
+    found.sort(key=lambda item: (item[0], item[1]))
+    return found
+
+
+def _dedupe(lines):
+    seen, out = set(), []
+    for line in lines:
+        key = line.strip()
+        if key and key not in seen:
+            seen.add(key)
+            out.append(key)
+    return out
+
+
+def run_compile(root, project=None, timeout=300):
+    root = Path(root).resolve()
+    result = {"status": "ok", "command": None, "project": None,
+              "errors": [], "warnings": [], "note": ""}
+    if not shutil.which("dotnet"):
+        result["status"] = "dotnet_missing"
+        result["note"] = "dotnet was not found on PATH"
+        return result
+    if project:
+        path = Path(project)
+        path = (root / path).resolve() if not path.is_absolute() else path.resolve()
+        if not path.is_file():
+            result["status"] = "no_project"
+            result["note"] = f"project not found: {project}"
+            return result
+    else:
+        projects = find_projects(root)
+        solutions = [p for p in projects if p[1].endswith(".sln")]
+        pick = solutions[0] if solutions else (projects[0] if projects else None)
+        if not pick:
+            result["status"] = "no_project"
+            result["note"] = "no .sln or .csproj found outside generated directories"
+            return result
+        if len(solutions) > 1 and solutions[1][0] == solutions[0][0]:
+            result["status"] = "ambiguous"
+            result["note"] = "multiple solutions at the same depth; pass --project"
+            result["candidates"] = [p[1] for p in solutions[:10]]
+            return result
+        path = pick[2]
+    try:
+        result["project"] = path.relative_to(root).as_posix()
+    except ValueError:
+        result["status"] = "no_project"
+        result["note"] = "project must live under the repository root"
+        return result
+    command = ["dotnet", "build", str(path), "--no-restore", "-v", "q", "--nologo"]
+    result["command"] = " ".join(command)
+    try:
+        proc = subprocess.run(command, cwd=str(root), capture_output=True,
+                              text=True, errors="replace", timeout=timeout)
+    except subprocess.TimeoutExpired:
+        result["status"] = "timeout"
+        result["note"] = f"dotnet build exceeded {timeout}s"
+        return result
+    except OSError as exc:
+        result["status"] = "error"
+        result["note"] = str(exc)
+        return result
+    stream = (proc.stdout or "") + "\n" + (proc.stderr or "")
+    for line in stream.splitlines():
+        match = DIAGNOSTIC.search(line)
+        if not match:
+            continue
+        stripped = line.strip()
+        if match.group(1) == "error":
+            result["errors"].append(stripped)
+        else:
+            result["warnings"].append(stripped)
+    result["errors"] = _dedupe(result["errors"])
+    result["warnings"] = _dedupe(result["warnings"])
+    result["error_count"] = len(result["errors"])
+    result["warning_count"] = len(result["warnings"])
+    result["errors"] = result["errors"][:MAX_ERRORS]
+    result["warnings"] = result["warnings"][:MAX_WARNINGS]
+    if proc.returncode != 0:
+        result["status"] = "failed"
+        if not result["errors"]:
+            tail = [line.strip() for line in stream.splitlines()
+                    if line.strip() and ("error" in line.lower() or "failed" in line.lower())]
+            result["errors"] = _dedupe(tail)[:5] or ["build failed without C# diagnostics"]
+    return result
+
+
+def summarize(result):
+    status = result["status"]
+    if status == "ok":
+        return ["COMPILE_STATUS: OK (0 errors)"]
+    if status == "failed":
+        lines = [f"COMPILE_STATUS: FAILED ({result.get('error_count', len(result['errors']))} errors, "
+                 f"{result.get('warning_count', len(result['warnings']))} warnings)"]
+        if result.get("error_count", 0) > MAX_ERRORS or result.get("warning_count", 0) > MAX_WARNINGS:
+            lines.append(f"COMPILE_DIAGNOSTICS_TRUNCATED: showing at most {MAX_ERRORS} errors "
+                         f"and {MAX_WARNINGS} warnings")
+        lines += result["errors"][:MAX_ERRORS]
+        lines += result["warnings"][:MAX_WARNINGS]
+        return lines
+    if status == "dotnet_missing":
+        return ["COMPILE_STATUS: NOT_RUN (dotnet not found on PATH)"]
+    if status == "no_project":
+        return ["COMPILE_STATUS: NOT_RUN (no .sln/.csproj found; pass --project)"]
+    if status == "ambiguous":
+        lines = ["COMPILE_STATUS: NOT_RUN (multiple solutions; pass --project)"]
+        lines += result.get("candidates", [])
+        return lines
+    if status == "timeout":
+        return ["COMPILE_STATUS: NOT_RUN (dotnet build timed out)"]
+    return [f"COMPILE_STATUS: NOT_RUN ({result.get('note') or status})"]
+
+
+def main(argv=None):
+    argv = list(sys.argv if argv is None else argv)
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+    ap = argparse.ArgumentParser(description="Filtered dotnet build check")
+    ap.add_argument("root")
+    ap.add_argument("--project", help="explicit .sln/.csproj path")
+    ap.add_argument("--timeout", type=int, default=300)
+    ap.add_argument("--json", action="store_true")
+    args = ap.parse_args(argv[1:])
+    if args.timeout < 1:
+        ap.error("--timeout must be positive")
+    result = run_compile(args.root, args.project, args.timeout)
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print("\n".join(summarize(result)))
+    return {"ok": 0, "failed": 1, "no_project": 2, "ambiguous": 2,
+            "dotnet_missing": 3, "timeout": 4}.get(result["status"], 4)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+<!-- END file: tools/verify_compile.py -->
+
+<!-- BEGIN file: tools/mcp_server.py -->
+#!/usr/bin/env python3
+"""Minimal MCP stdio server for the unity-workflow-kit tools.
+
+Usage:
+    python tools/mcp_server.py [--root REPO]
+
+Transport: newline-delimited JSON-RPC 2.0 (MCP stdio). No third-party packages.
+Tools:
+    uwk_get_context     route context, C# skeleton, or condensed Unity YAML
+    uwk_find_suspects   git diff + changed-type references -> suspect claims
+    uwk_validate        pack validation and optional filtered dotnet build
+    uwk_save_handoff    write sessions/<branch-slug>__<actor-slug>.md and refresh index.json
+"""
+import argparse
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+TOOLS_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(TOOLS_DIR))
+import context as task_context  # noqa: E402
+import packlib as P  # noqa: E402
+
+VERSION = "1.4.0"
+PROTOCOLS = ("2025-06-18", "2025-03-26", "2024-11-05")
+SERVER_ROOT = Path.cwd()
+
+
+def _schema(properties, required=()):
+    return {"type": "object", "properties": properties, "required": list(required),
+            "additionalProperties": False}
+
+
+TOOLS = [
+    {
+        "name": "uwk_get_context",
+        "description": "Load a selected task route plus dependencies/session state, or a "
+                       "C# skeleton, or a condensed .unity/.prefab hierarchy. Never returns "
+                       "raw serialization YAML.",
+        "inputSchema": _schema({
+            "root": {"type": "string", "description": "repository root (default: server root)"},
+            "pack": {"type": "string", "description": "pack directory", "default": "docs/ai-workflow"},
+            "route": {"type": "string", "description": "one R-### route"},
+            "routes": {"type": "array", "items": {"type": "string"}},
+            "file": {"type": "string", "description": ".cs, .unity, or .prefab path"},
+            "method": {"type": ["string", "array"], "items": {"type": "string"},
+                       "description": "full C# method body/bodies instead of the skeleton"},
+            "sessions": {"type": "boolean", "default": True},
+            "max_chars": {"type": "integer", "default": 16000},
+            "branch": {"type": "string"},
+            "actor": {"type": "string"},
+        }),
+    },
+    {
+        "name": "uwk_find_suspects",
+        "description": "Compute suspect claims from git changes, changed C# type references, "
+                       "and invalidation triggers. Returns compact JSON, not source files.",
+        "inputSchema": _schema({
+            "root": {"type": "string"},
+            "pack": {"type": "string", "default": "docs/ai-workflow"},
+            "since": {"type": "string", "description": "git revision (default HEAD)"},
+            "changed": {"type": "array", "items": {"type": "string"},
+                        "description": "explicit paths; overrides since"},
+            "triggers": {"type": "array", "items": {"type": "string"}},
+            "references": {"type": "boolean", "default": True},
+        }),
+    },
+    {
+        "name": "uwk_validate",
+        "description": "Validate pack structure, IDs, .meta/GUID integrity, documented paths, "
+                       "and optionally run a filtered dotnet build.",
+        "inputSchema": _schema({
+            "root": {"type": "string"},
+            "pack": {"type": "string", "default": "docs/ai-workflow"},
+            "compile": {"type": "boolean", "default": False},
+        }),
+    },
+    {
+        "name": "uwk_save_handoff",
+        "description": "Write this actor's session file at sessions/<branch-slug>__<actor-slug>.md and "
+                       "regenerate index.json. Content must say 'see validation matrix'.",
+        "inputSchema": _schema({
+            "root": {"type": "string"},
+            "pack": {"type": "string", "default": "docs/ai-workflow"},
+            "content": {"type": "string"},
+            "actor": {"type": "string"},
+            "branch": {"type": "string"},
+            "require_phrase": {"type": "boolean", "default": True},
+        }, ("content",)),
+    },
+]
+
+
+def _resolve_root(value):
+    root = Path(value) if value else SERVER_ROOT
+    return (root if root.is_absolute() else SERVER_ROOT / root).resolve()
+
+
+def _text(text, is_error=False):
+    return {"content": [{"type": "text", "text": text}], "isError": bool(is_error)}
+
+
+def _run_tool(script, args):
+    proc = subprocess.run([sys.executable, str(TOOLS_DIR / script)] + [str(a) for a in args],
+                          capture_output=True, text=True, errors="replace")
+    output = (proc.stdout or "") + (proc.stderr or "")
+    return _text(output.rstrip() or f"{script} exited {proc.returncode}",
+                 proc.returncode != 0)
+
+
+def call_tool(name, args):
+    args = args if isinstance(args, dict) else {}
+    root = _resolve_root(args.get("root"))
+    pack = args.get("pack") or "docs/ai-workflow"
+    if name == "uwk_get_context":
+        routes = list(args.get("routes") or [])
+        if args.get("route"):
+            routes.append(args["route"])
+        methods = args.get("method") or []
+        if isinstance(methods, str):
+            methods = [methods]
+        try:
+            max_chars = int(args.get("max_chars") or 16000)
+        except (TypeError, ValueError):
+            return _text("max_chars must be an integer", True)
+        try:
+            text = task_context.build_output(
+                root, pack, routes, args.get("file"), methods,
+                bool(args.get("sessions", True)), args.get("branch"), args.get("actor"))
+        except (ValueError, OSError) as exc:
+            return _text(str(exc), True)
+        if len(text) > max_chars:
+            return _text(f"Context needs {len(text)} characters; limit is {max_chars}. "
+                         "Select fewer routes or raise max_chars. Nothing was truncated.", True)
+        return _text(text)
+    if name == "uwk_find_suspects":
+        cmd = ["--pack", pack, "--json"]
+        changed = args.get("changed") or []
+        if changed:
+            cmd += ["--changed"] + list(changed)
+        else:
+            cmd += ["--since", str(args.get("since") or "HEAD")]
+        for trigger in args.get("triggers") or []:
+            cmd += ["--trigger", trigger]
+        if args.get("references") is False:
+            cmd += ["--no-references"]
+        return _run_tool("suspects.py", [root] + cmd)
+    if name == "uwk_validate":
+        cmd = [root, pack]
+        if args.get("compile"):
+            cmd.append("--compile")
+        return _run_tool("validate_pack.py", cmd)
+    if name == "uwk_save_handoff":
+        try:
+            path, index_path, changed = P.save_handoff(
+                root, root / pack, args.get("content", ""), args.get("actor"),
+                args.get("branch"), bool(args.get("require_phrase", True)))
+        except (ValueError, OSError) as exc:
+            return _text(str(exc), True)
+        return _text(f"wrote {path.relative_to(root).as_posix()}\n"
+                     f"index.json {'updated' if changed else 'already current'} "
+                     f"({index_path.relative_to(root).as_posix()})")
+    return None
+
+
+def handle(message):
+    """Return a JSON-RPC response dict, or None for notifications."""
+    if not isinstance(message, dict):
+        return {"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "invalid request"}}
+    msg_id = message.get("id")
+    method = message.get("method")
+    params = message.get("params") or {}
+    is_notification = "id" not in message
+    if not isinstance(method, str):
+        return None if is_notification else {
+            "jsonrpc": "2.0", "id": msg_id,
+            "error": {"code": -32600, "message": "invalid request"}}
+    if method == "initialize":
+        requested = params.get("protocolVersion") if isinstance(params, dict) else None
+        protocol = requested if requested in PROTOCOLS else PROTOCOLS[0]
+        result = {
+            "protocolVersion": protocol,
+            "capabilities": {"tools": {"listChanged": False}},
+            "serverInfo": {"name": "unity-workflow-kit", "version": VERSION},
+            "instructions": "Use uwk_get_context before reading source; use uwk_validate "
+                            "before claiming completion; save progress with uwk_save_handoff.",
+        }
+        return None if is_notification else {"jsonrpc": "2.0", "id": msg_id, "result": result}
+    if method in ("notifications/initialized", "notifications/cancelled"):
+        return None
+    if method == "ping":
+        return None if is_notification else {"jsonrpc": "2.0", "id": msg_id, "result": {}}
+    if method == "tools/list":
+        return None if is_notification else {
+            "jsonrpc": "2.0", "id": msg_id, "result": {"tools": TOOLS}}
+    if method == "tools/call":
+        if not isinstance(params, dict) or not isinstance(params.get("name"), str):
+            return None if is_notification else {
+                "jsonrpc": "2.0", "id": msg_id,
+                "error": {"code": -32602, "message": "tools/call requires params.name"}}
+        result = call_tool(params["name"], params.get("arguments"))
+        if result is None:
+            return None if is_notification else {
+                "jsonrpc": "2.0", "id": msg_id,
+                "error": {"code": -32602, "message": f"unknown tool: {params['name']}"}}
+        return None if is_notification else {"jsonrpc": "2.0", "id": msg_id, "result": result}
+    if is_notification:
+        return None
+    return {"jsonrpc": "2.0", "id": msg_id,
+            "error": {"code": -32601, "message": f"method not found: {method}"}}
+
+
+def serve(instream, outstream):
+    for raw in instream:
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8", errors="replace")
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError as exc:
+            response = {"jsonrpc": "2.0", "id": None,
+                        "error": {"code": -32700, "message": f"parse error: {exc}"}}
+        else:
+            response = handle(message)
+        if response is not None:
+            outstream.write(json.dumps(response, ensure_ascii=False) + "\n")
+            outstream.flush()
+
+
+def main(argv=None):
+    global SERVER_ROOT
+    argv = list(sys.argv if argv is None else argv)
+    ap = argparse.ArgumentParser(description="MCP stdio server for unity-workflow-kit")
+    ap.add_argument("--root", default=".", help="default repository root")
+    args = ap.parse_args(argv[1:])
+    SERVER_ROOT = Path(args.root).resolve()
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+    print(f"unity-workflow-kit MCP server {VERSION} (root: {SERVER_ROOT})", file=sys.stderr)
+    serve(sys.stdin.buffer, sys.stdout)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+<!-- END file: tools/mcp_server.py -->
+
+<!-- BEGIN file: tools/install_hooks.py -->
+#!/usr/bin/env python3
+"""Install the versioned Git hooks for this workflow kit.
+
+Usage:
+    python tools/install_hooks.py [repo_root] [--force] [--no-merge-driver] [--pack DIR]
+
+Copies scripts/hooks/pre-commit, post-merge, post-checkout, and the helper
+module into the repository's actual hooks directory (worktrees included).
+It also records the pack path for the hooks, enables the `merge=ours` driver,
+and appends idempotent .gitattributes rules for the generated index and (when
+inside the repo) dist bundle.
+Existing non-kit hooks are never overwritten unless --force is passed.
+"""
+import argparse
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+KIT = Path(__file__).resolve().parent.parent
+SOURCE = KIT / "scripts/hooks"
+HOOKS = ("pre-commit", "post-merge", "post-checkout", "uwk_hooks_common.py")
+MARKER = "UWK_HOOK managed by unity-workflow-kit"
+PACK_CONFIG = "uwk_pack_path"
+
+
+def hooks_dir(root):
+    r = subprocess.run(["git", "-C", str(root), "rev-parse", "--git-path", "hooks"],
+                       capture_output=True, text=True, errors="replace")
+    if r.returncode != 0:
+        raise ValueError(r.stderr.strip() or "not a git repository")
+    path = Path(r.stdout.strip())
+    return path.resolve() if path.is_absolute() else (Path(root) / path).resolve()
+
+
+def configure_merge_driver(root):
+    r = subprocess.run(["git", "-C", str(root), "config", "--get", "merge.ours.driver"],
+                       capture_output=True, text=True, errors="replace")
+    if r.returncode == 0 and r.stdout.strip():
+        return False
+    run = subprocess.run(["git", "-C", str(root), "config", "merge.ours.driver", "true"],
+                         capture_output=True, text=True, errors="replace")
+    if run.returncode != 0:
+        raise ValueError(run.stderr.strip() or "could not configure merge.ours.driver")
+    return True
+
+
+def configure_attributes(root, pack="docs/ai-workflow"):
+    """Append merge=ours rules for generated files without rewriting existing lines."""
+    root = Path(root).resolve()
+    path = root / ".gitattributes"
+    existing = path.read_bytes() if path.is_file() else b""
+    text = existing.decode("utf-8", errors="replace")
+    lines = text.splitlines()
+    pack_path = Path(pack)
+    if not pack_path.is_absolute():
+        pack_path = root / pack_path
+    try:
+        pack_rel = pack_path.resolve().relative_to(root).as_posix()
+    except ValueError:
+        raise ValueError("pack directory must be inside the repository")
+    wanted = [f"{pack_rel}/index.json merge=ours"]
+    try:
+        bundle = (KIT / "dist/Unity_Workflow_Agent_Generator_bundle.md").resolve().relative_to(root)
+    except ValueError:
+        bundle = None
+    if bundle is not None:
+        wanted.append(f"{bundle.as_posix()} merge=ours")
+    missing = []
+    for rule in wanted:
+        attr_path = rule.split()[0].lstrip("/")
+        if not any(line.split() and line.lstrip("/").split()[0] == attr_path
+                   and "merge=ours" in line.split()[1:] for line in lines):
+            missing.append(rule)
+    if not missing:
+        return False
+    prefix = "\n" if existing and not existing.endswith(b"\n") else ""
+    path.write_bytes(existing + (prefix + "\n".join(missing) + "\n").encode("utf-8"))
+    return True
+
+
+def record_pack(target_dir, repo_root, pack):
+    path = Path(pack)
+    if not path.is_absolute():
+        path = Path(repo_root) / path
+    path = path.resolve()
+    try:
+        value = path.relative_to(Path(repo_root).resolve()).as_posix()
+    except ValueError:
+        value = str(path)
+    (target_dir / PACK_CONFIG).write_text(value + "\n", encoding="utf-8")
+
+
+def main(argv=None):
+    argv = list(sys.argv if argv is None else argv)
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+    ap = argparse.ArgumentParser(description="Install unity-workflow-kit Git hooks")
+    ap.add_argument("root", nargs="?", default=".")
+    ap.add_argument("--force", action="store_true", help="overwrite existing hooks")
+    ap.add_argument("--no-merge-driver", action="store_true",
+                    help="do not configure merge.ours.driver or .gitattributes")
+    ap.add_argument("--pack", default="docs/ai-workflow",
+                    help="pack directory used by hooks and the .gitattributes rule")
+    args = ap.parse_args(argv[1:])
+    root = Path(args.root).resolve()
+    if not SOURCE.is_dir():
+        print(f"hook sources not found: {SOURCE}", file=sys.stderr)
+        return 1
+    try:
+        target_dir = hooks_dir(root)
+        top = subprocess.run(["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, errors="replace")
+        attributes_root = Path(top.stdout.strip()).resolve() if top.returncode == 0 else root
+        if not args.no_merge_driver:
+            configured = configure_merge_driver(root)
+            attributes_changed = configure_attributes(attributes_root, args.pack)
+        else:
+            configured, attributes_changed = False, False
+    except (OSError, ValueError) as exc:
+        print(f"install failed: {exc}", file=sys.stderr)
+        return 1
+    target_dir.mkdir(parents=True, exist_ok=True)
+    skipped = []
+    for name in HOOKS:
+        source = SOURCE / name
+        target = target_dir / name
+        if not source.is_file():
+            print(f"missing hook source: {source}", file=sys.stderr)
+            return 1
+        if target.exists() and not args.force:
+            try:
+                if MARKER not in target.read_text(encoding="utf-8", errors="replace"):
+                    skipped.append(target)
+                    continue
+            except OSError:
+                skipped.append(target)
+                continue
+        data = source.read_bytes().replace(b"\r\n", b"\n")
+        target.write_bytes(data)
+        if os.name != "nt":
+            target.chmod(0o755)
+    record_pack(target_dir, attributes_root, args.pack)
+    for path in skipped:
+        print(f"SKIP existing non-kit hook: {path} (use --force to replace)", file=sys.stderr)
+    print(f"installed {len(HOOKS) - len(skipped)} hook file(s) in {target_dir}")
+    if not args.no_merge_driver:
+        print("merge.ours.driver " + ("configured" if configured else "already configured"))
+        print(".gitattributes " + ("updated" if attributes_changed else "already configured"))
+    if skipped:
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+<!-- END file: tools/install_hooks.py -->
+
+<!-- BEGIN file: scripts/hooks/post-checkout -->
+#!/usr/bin/env python3
+# UWK_HOOK managed by unity-workflow-kit tools/install_hooks.py
+"""Regenerate index.json after a checkout so navigation matches the branch."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import uwk_hooks_common as C
+
+
+def main():
+    C.configure_stdio()
+    repo = C.repo_root(Path.cwd())
+    pack = C.pack_dir(repo)
+    if not pack:
+        return 0
+    packlib = C.find_tool(repo, C.find_kit(repo), "packlib.py")
+    if not packlib:
+        return 0
+    result = C.run_python(packlib, "index", repo, "--pack", pack)
+    C.emit(result)
+    return result.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+<!-- END file: scripts/hooks/post-checkout -->
+
+<!-- BEGIN file: scripts/hooks/post-merge -->
+#!/usr/bin/env python3
+# UWK_HOOK managed by unity-workflow-kit tools/install_hooks.py
+"""Regenerate index.json after a merge so branch state and navigation agree."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import uwk_hooks_common as C
+
+
+def main():
+    C.configure_stdio()
+    repo = C.repo_root(Path.cwd())
+    pack = C.pack_dir(repo)
+    if not pack:
+        return 0
+    packlib = C.find_tool(repo, C.find_kit(repo), "packlib.py")
+    if not packlib:
+        return 0
+    result = C.run_python(packlib, "index", repo, "--pack", pack)
+    C.emit(result)
+    return result.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+<!-- END file: scripts/hooks/post-merge -->
+
+<!-- BEGIN file: scripts/hooks/pre-commit -->
+#!/usr/bin/env python3
+# UWK_HOOK managed by unity-workflow-kit tools/install_hooks.py
+"""Refresh the bundle/session index and validate the pack before committing."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import uwk_hooks_common as C
+
+BUNDLE_PATHS = ("ENTRYPOINT.md", "core/", "templates/", "hosts/", "tools/", "scripts/hooks/")
+
+
+def main():
+    C.configure_stdio()
+    repo = C.repo_root(Path.cwd())
+    kit = C.find_kit(repo)
+    files = C.staged(repo)
+    if not files:
+        return 0
+
+    needs_bundle = kit and any(f == "ENTRYPOINT.md" or f.startswith(BUNDLE_PATHS[1:])
+                               for f in files)
+    output = kit / "dist/Unity_Workflow_Agent_Generator_bundle.md" if kit else None
+    if needs_bundle and output is not None:
+        try:
+            output.resolve().relative_to(repo)
+            inside = True
+        except ValueError:
+            inside = False
+    else:
+        inside = False
+    if needs_bundle and output is not None and not inside:
+        print("pre-commit: bundle lives outside the repository; rebuild skipped", file=sys.stderr)
+    elif needs_bundle and C.is_ignored(repo, output):
+        print("pre-commit: bundle output is ignored; bundle rebuild skipped", file=sys.stderr)
+    elif needs_bundle:
+        result = C.run_python(kit / "tools/bundle.py")
+        C.emit(result)
+        if result.returncode != 0:
+            print("pre-commit: bundle rebuild failed; commit blocked", file=sys.stderr)
+            return 1
+        if output.exists():
+            try:
+                rel = output.resolve().relative_to(repo)
+            except ValueError:
+                rel = None
+            if rel is not None:
+                run = C.git(repo, "add", "--", rel.as_posix())
+                if run.returncode != 0:
+                    C.emit(run)
+                    return 1
+
+    pack = C.pack_dir(repo)
+    if pack:
+        packlib = C.find_tool(repo, kit, "packlib.py")
+        if packlib:
+            result = C.run_python(packlib, "index", repo, "--pack", pack)
+            C.emit(result)
+            if result.returncode != 0:
+                print("pre-commit: index refresh failed; commit blocked", file=sys.stderr)
+                return 1
+            index_file = pack / "index.json"
+            if not C.is_ignored(repo, index_file):
+                run = C.git(repo, "add", "--", index_file.relative_to(repo).as_posix())
+                if run.returncode != 0:
+                    C.emit(run)
+                    return 1
+        validate = C.find_tool(repo, kit, "validate_pack.py")
+        if validate:
+            result = C.run_python(validate, repo, pack)
+            C.emit(result)
+            if result.returncode != 0:
+                print("pre-commit: pack validation failed; commit blocked", file=sys.stderr)
+                return 1
+        else:
+            print("pre-commit: validate_pack.py not found; validation skipped", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+<!-- END file: scripts/hooks/pre-commit -->
+
+<!-- BEGIN file: scripts/hooks/uwk_hooks_common.py -->
+# UWK_HOOK managed by unity-workflow-kit tools/install_hooks.py
+"""Shared helpers for installed unity-workflow-kit Git hooks (standard library only)."""
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+
+def configure_stdio():
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
+def git(repo, *args):
+    return subprocess.run(["git", "-C", str(repo)] + list(args),
+                          capture_output=True, text=True, errors="replace")
+
+
+def repo_root(start):
+    r = git(start, "rev-parse", "--show-toplevel")
+    return Path(r.stdout.strip()).resolve() if r.returncode == 0 else Path(start).resolve()
+
+
+def find_kit(repo):
+    candidates = []
+    env = os.environ.get("UWK_KIT_ROOT")
+    if env:
+        candidates.append(Path(env))
+    candidates += [repo, repo / "_ai-generator", repo / "tools/unity-workflow-kit"]
+    for path in candidates:
+        try:
+            path = path.resolve()
+        except OSError:
+            continue
+        if (path / "tools/bundle.py").is_file() or (
+                (path / "ENTRYPOINT.md").is_file() and (path / "tools/packlib.py").is_file()):
+            return path
+    return None
+
+
+def is_ignored(repo, path):
+    try:
+        rel = Path(path).resolve().relative_to(Path(repo).resolve())
+    except ValueError:
+        return True
+    r = git(repo, "check-ignore", "-q", "--", rel.as_posix())
+    return r.returncode == 0
+
+
+def find_tool(repo, kit, name):
+    candidates = []
+    configured = configured_pack(repo)
+    if configured:
+        candidates.append(configured / "tools" / name)
+    candidates += [repo / "docs/ai-workflow/tools" / name,
+                   repo / "tools" / name]
+    if kit:
+        candidates += [kit / "tools" / name, kit / "docs/ai-workflow/tools" / name]
+    for path in candidates:
+        if path.is_file():
+            return path
+    return None
+
+
+def configured_pack(repo):
+    marker = Path(__file__).resolve().parent / "uwk_pack_path"
+    if not marker.is_file():
+        return None
+    try:
+        value = marker.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return None
+    if not value:
+        return None
+    path = Path(value)
+    return (Path(repo) / path).resolve() if not path.is_absolute() else path.resolve()
+
+
+def pack_dir(repo):
+    configured = configured_pack(repo)
+    if configured and (configured / "index.json").is_file():
+        return configured
+    pack = Path(repo) / "docs/ai-workflow"
+    return pack if (pack / "index.json").is_file() else None
+
+
+def staged(repo):
+    r = git(repo, "diff", "--cached", "--name-only", "-z", "--no-renames")
+    if r.returncode != 0:
+        return []
+    return [p for p in r.stdout.split("\0") if p]
+
+
+def run_python(tool, *args):
+    return subprocess.run([sys.executable, str(tool)] + [str(a) for a in args],
+                          capture_output=True, text=True, errors="replace")
+
+
+def emit(result):
+    if result.stdout:
+        sys.stdout.write(result.stdout)
+    if result.stderr:
+        sys.stderr.write(result.stderr)
+<!-- END file: scripts/hooks/uwk_hooks_common.py -->

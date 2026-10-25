@@ -63,7 +63,7 @@ Do not prescribe fixes for overflow stubs unless promoted into detailed findings
 
 Choose the smallest profile that preserves safe navigation and verification. Every profile ends with the same evidence rules; only document count changes.
 
-All profiles copy `tools/packlib.py`, `tools/validate_pack.py`, `tools/suspects.py`, and `tools/context.py` into `<pack_dir>/tools/`. Copy files directly without printing source into model context.
+All profiles copy `tools/packlib.py`, `tools/validate_pack.py`, `tools/suspects.py`, `tools/context.py`, `tools/verify_compile.py`, and `tools/mcp_server.py` into `<pack_dir>/tools/`. Copy files directly without printing source into model context.
 
 ### Compact (default)
 
@@ -75,8 +75,8 @@ Required generated files:
 - `agent.md` (short): role, operating loop, task routes, and increments. Compact keeps **procedure** here so `project-context.md` stays facts only;
 - `project-context.md`;
 - `validation-matrix.md`;
-- `session-handoff.md`;
-- `index.json`.
+- `sessions/` with at least one `<branch-slug>__<actor>.md` handoff;
+- generated `index.json` (run `packlib.py index`, never hand-edit).
 
 ### Standard
 

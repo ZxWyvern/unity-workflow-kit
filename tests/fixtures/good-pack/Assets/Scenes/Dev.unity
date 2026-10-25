@@ -1,5 +1,49 @@
 %YAML 1.1
---- !u!114 &1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &100
+GameObject:
+  m_ObjectHideFlags: 0
+  m_Component:
+  - component: {fileID: 101}
+  - component: {fileID: 102}
+  m_Name: Bootstrap
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &101
+Transform:
+  m_GameObject: {fileID: 100}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Father: {fileID: 0}
+  m_Children: []
+--- !u!114 &102
 MonoBehaviour:
-  m_Script: {fileID: 11500000, guid: 00000000000000000000000000000001, type: 3}
-  _player: {fileID: 2}
+  m_GameObject: {fileID: 100}
+  m_Script: {fileID: 11500000, guid: 11111111111111111111111111111111, type: 3}
+  m_Name:
+  _player: {fileID: 202}
+--- !u!1 &200
+GameObject:
+  m_ObjectHideFlags: 0
+  m_Component:
+  - component: {fileID: 201}
+  - component: {fileID: 202}
+  m_Name: Player
+  m_TagString: Player
+  m_IsActive: 1
+--- !u!4 &201
+Transform:
+  m_GameObject: {fileID: 200}
+  m_LocalPosition: {x: 0, y: 1, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Father: {fileID: 0}
+  m_Children: []
+--- !u!114 &202
+MonoBehaviour:
+  m_GameObject: {fileID: 200}
+  m_Script: {fileID: 11500000, guid: 22222222222222222222222222222222, type: 3}
+  m_Name:
+  _maxHealth: 100
+  _invulnerable: 0

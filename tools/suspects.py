@@ -1,29 +1,101 @@
 #!/usr/bin/env python3
-"""Compute suspect claims for Refresh mode (generator v1.3.0).
+"""Compute suspect claims for Refresh mode (generator v1.4.0).
 
 Usage:
     python suspects.py <repo_root> [--pack DIR] (--since REV | --changed PATH [PATH ...])
-                       [--trigger TOKEN ...] [--json]
+                       [--trigger TOKEN ...] [--json] [--no-references]
 
 --since REV     tracked changes against REV plus untracked, nonignored files
 --changed ...   explicit repository-relative paths (use when git is unavailable)
 --trigger TOKEN also mark every claim whose invalidates: list contains TOKEN
                 (e.g. package_or_unity_version_changed)
+--no-references skip the changed-type -> referencing-file scan
 
 A claim is suspect when its path changed (or its .meta changed, or a file under
 its directory changed, or the path no longer exists), when it carries a fired
-trigger, or when it depends (transitively) on a suspect claim.
+trigger, or when it depends (transitively) on a suspect claim. Changed C# type
+definitions also pull in files that reference those types, so the agent sees
+likely call sites without a whole-repository search.
 This tool only reads. It never edits the pack or resets check statuses;
 the agent decides what to reset after reviewing the output.
 """
 import argparse
 import json
+import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import packlib as P  # noqa: E402
+
+SKIP_DIRS = {".git", "Library", "Temp", "Obj", "Logs", "Builds", "UserSettings",
+             "node_modules", ".idea", ".vs", ".vscode", "PackageCache"}
+TYPE_DEF = re.compile(r"\b(?:class|struct|interface|enum|record)\s+([A-Za-z_]\w*)")
+MAX_REFERENCE_FILES = 4000
+MAX_REFERENCE_BYTES = 512 * 1024
+
+
+def cs_symbols(path):
+    """Type names declared by one C# file (empty when unreadable)."""
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return set()
+    return {name for name in TYPE_DEF.findall(text) if len(name) >= 3}
+
+
+def reference_scan(root, changed):
+    """Map files that mention types declared in changed C# files to those types."""
+    root = Path(root)
+    changed = set(changed)
+    types, origins = set(), {}
+    for rel in sorted(changed):
+        if not rel.endswith(".cs"):
+            continue
+        path = root / rel
+        if not path.is_file():
+            continue
+        names = cs_symbols(path)
+        types.update(names)
+        for name in names:
+            origins.setdefault(name, rel)
+    notes = {"capped": False, "skipped_large": 0}
+    if not types:
+        return {}, set(), origins, notes
+    pattern = re.compile(r"\b(?:" + "|".join(sorted(map(re.escape, types))) + r")\b")
+    hits, scanned = {}, 0
+    for base, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not d.startswith("."))
+        for name in sorted(files):
+            if not name.endswith(".cs"):
+                continue
+            path = Path(base) / name
+            try:
+                rel = path.relative_to(root).as_posix()
+            except ValueError:
+                continue
+            if rel in changed:
+                continue
+            try:
+                if path.stat().st_size > MAX_REFERENCE_BYTES:
+                    notes["skipped_large"] += 1
+                    continue
+                text = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            scanned += 1
+            if scanned > MAX_REFERENCE_FILES:
+                notes["capped"] = True
+                break
+            found = sorted(set(pattern.findall(text)) & types)
+            if found:
+                hits[rel] = found
+        if scanned > MAX_REFERENCE_FILES:
+            notes["capped"] = True
+            break
+    return hits, set(hits), origins, notes
 
 
 def git_changed(root, rev):
@@ -44,6 +116,11 @@ def git_changed(root, rev):
 
 
 def main(argv):
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     ap = argparse.ArgumentParser(description="Suspect-claim calculator for Refresh mode")
     ap.add_argument("root")
     ap.add_argument("--pack", default="docs/ai-workflow")
@@ -51,11 +128,18 @@ def main(argv):
     g.add_argument("--since")
     g.add_argument("--changed", nargs="+")
     ap.add_argument("--trigger", action="append", default=[])
+    ap.add_argument("--no-references", action="store_true",
+                    help="skip the changed-type referencing-file scan")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv[1:])
 
     root = Path(a.root).resolve()
-    pack = root / a.pack
+    pack = (root / a.pack).resolve() if not Path(a.pack).is_absolute() else Path(a.pack).resolve()
+    try:
+        pack.relative_to(root)
+    except ValueError:
+        print(f"pack directory must be inside the repository: {pack}", file=sys.stderr)
+        return 2
     texts = P.read_pack(root, pack)
     claims = P.parse_claims(texts)
     if not claims:
@@ -75,6 +159,11 @@ def main(argv):
             c = c[2:]
         return c
     changed = {norm(c) for c in changed}
+    references, reference_files, origins = {}, set(), {}
+    reference_notes = {"capped": False, "skipped_large": 0}
+    if not a.no_references:
+        references, reference_files, origins, reference_notes = reference_scan(root, changed)
+        changed |= reference_files
     # Index ancestors once instead of scanning every changed path for every claim.
     ancestors = set()
     for path in changed:
@@ -134,6 +223,9 @@ def main(argv):
 
     result = {
         "changed_files": sorted(changed),
+        "symbol_references": {k: references[k] for k in sorted(references)},
+        "reference_types": {k: origins[k] for k in sorted(origins)},
+        "reference_scan": reference_notes,
         "direct": {k: direct[k] for k in sorted(direct)},
         "transitive": {k: f"depends on {transitive[k]}" for k in sorted(transitive)},
         "findings_to_recheck": sorted(findings),
@@ -145,6 +237,9 @@ def main(argv):
         print(json.dumps(result, indent=2))
         return 0
     print(f"changed files: {len(changed)}")
+    if references:
+        print(f"symbol references: {len(references)} file(s) mention changed types: "
+              + ", ".join(sorted(origins)))
     print(f"suspect claims: {len(suspect)} ({len(direct)} direct, {len(transitive)} via deps)")
     for k in sorted(direct):
         print(f"  {k}  direct     {direct[k]}  [{claims[k]['label']}]  {claims[k]['path']}")

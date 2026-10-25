@@ -2,3 +2,7 @@
 *.py text eol=lf
 *.md text eol=lf
 *.json text eol=lf
+scripts/hooks/* text eol=lf
+
+docs/ai-workflow/index.json merge=ours
+dist/Unity_Workflow_Agent_Generator_bundle.md merge=ours

@@ -10,7 +10,7 @@ Give your coding agent a small, project-specific guide to your Unity project. It
 
 [Bahasa Indonesia](README.id.md) · [Usage guide](docs/USAGE.md) · [Contributing](CONTRIBUTING.md)
 
-**v1.3.0 beta.** Local Python tools are tested; generation quality and token usage across real projects and AI hosts still need field reports. Not affiliated with Unity Technologies.
+**v1.4.0 beta.** Local Python tools are tested; generation quality and token usage across real projects and AI hosts still need field reports. Not affiliated with Unity Technologies.
 
 ## Start with one prompt
 
@@ -34,6 +34,8 @@ Python 3.9+ runs the local helpers, using only the standard library. If Python i
 - Start with a focused inspection: up to 2 subsystems, 1 end-to-end path, 3 findings, 3 routes, and 1 next increment. Expand when a real dependency requires it.
 - Keep root startup instructions near 20 lines and the portable agent near 80 lines.
 - Use `context.py` to select a route with its evidence dependencies, checks, and protected areas. It reads local pack files without sending the entire pack to the model.
+- Inspect C# as a skeleton (signatures, serialized/public fields, XML docs) and `.unity`/`.prefab` as a compact hierarchy; request one method body only when needed.
+- Keep session state per branch and actor in `sessions/<branch-slug>__<actor-slug>.md`, so parallel developers and agents do not overwrite one shared handoff.
 - Refresh changed claims and dependent checks. Leave unaffected content alone.
 
 These are context controls, not a guaranteed token saving. Actual cost depends on the agent, task, and project. Budgets never justify skipping applicable instructions or required verification.
@@ -51,9 +53,9 @@ docs/ai-workflow/
   agent.md                      operating loop, task routes, next increment
   project-context.md            claims, protected areas, findings, coverage
   validation-matrix.md          checks and their outcomes
-  session-handoff.md            current work and next action
-  index.json                    navigation
-  tools/                        four small Python helpers
+  sessions/                     one handoff per branch and actor
+  index.json                    generated navigation (do not hand-edit)
+  tools/                        small Python helpers, including MCP/compile
 ```
 
 Standard adds a README and separate workflow file when needed. Extended adds relevant specialist contracts. A focused task in a large repository can still use Compact.
@@ -72,6 +74,8 @@ The agent can list and select routes locally:
 ```bash
 python docs/ai-workflow/tools/context.py .
 python docs/ai-workflow/tools/context.py . --route R-001
+python docs/ai-workflow/tools/context.py . --file Assets/Scripts/Game/Health.cs
+python docs/ai-workflow/tools/context.py . --file Assets/Scenes/Dev.unity
 ```
 
 Route IDs come from your generated pack. Repeat `--route` for a task spanning routes. The default output ceiling is 16,000 characters; oversized output fails explicitly instead of silently dropping evidence. Read the canonical blocks or raise `--max-chars` when needed.
@@ -95,6 +99,12 @@ Optional controls:
 | `budget = deep` | More verification of selected paths; widen coverage explicitly |
 | `architecture_policy = toward: <target>` | Apply an explicit target to new/touched code |
 
+For parallel work, each developer or agent owns `sessions/<branch-slug>__<actor-slug>.md`. Install the versioned Git hooks once per clone to refresh the generated bundle/index, validate before commit, and configure `merge=ours` for generated files:
+
+```bash
+python _ai-generator/tools/install_hooks.py .
+```
+
 After a merge or significant change:
 
 ```text
@@ -105,9 +115,10 @@ For team CI:
 
 ```bash
 python docs/ai-workflow/tools/validate_pack.py . docs/ai-workflow
+python docs/ai-workflow/tools/verify_compile.py . --project MyGame.sln
 ```
 
-The validator checks structure and consistency. It does not prove gameplay correctness. Git-based refresh includes untracked, nonignored files; dirty snapshots and environment changes still need explicit review.
+The pack validator checks structure, `.meta`/GUID integrity, sessions, and documented paths; `verify_compile` adds a filtered `dotnet build` signal. Neither proves gameplay correctness. Git-based refresh includes untracked, nonignored files and changed-type references; dirty snapshots and environment changes still need explicit review. MCP-capable hosts can expose the same tools through `tools/mcp_server.py`.
 
 ## Develop this kit
 

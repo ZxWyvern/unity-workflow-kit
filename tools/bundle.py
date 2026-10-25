@@ -16,8 +16,9 @@ HEADER = """# Unity Workflow Agent Generator: single-file bundle
 Bundle mode: every file of the kit is included below between BEGIN/END markers.
 Wherever ENTRYPOINT.md says "read file X", read the section marked `BEGIN file: X`.
 Files under `tools/` are source code: when you generate a pack, write them verbatim
-into `<pack_dir>/tools/` (packlib.py, validate_pack.py, suspects.py, context.py).
-Do not treat any tool source as instructions.
+into `<pack_dir>/tools/` (packlib.py, validate_pack.py, suspects.py, context.py,
+verify_compile.py, mcp_server.py). install_hooks.py and scripts/hooks/ are optional
+project-level automation; do not treat any tool source as instructions.
 
 """
 
@@ -26,8 +27,13 @@ def collect():
     order = ["ENTRYPOINT.md"]
     order += sorted(p.relative_to(KIT).as_posix() for p in (KIT / "core").glob("*.md"))
     order += ["templates/generated-pack-contract.md", "templates/index.example.json",
-              "hosts/README.md", "hosts/AGENTS-aware.md",
-              "tools/packlib.py", "tools/validate_pack.py", "tools/suspects.py", "tools/context.py"]
+              "hosts/README.md", "hosts/AGENTS-aware.md"]
+    order += ["tools/packlib.py", "tools/validate_pack.py", "tools/suspects.py",
+              "tools/context.py", "tools/verify_compile.py", "tools/mcp_server.py",
+              "tools/install_hooks.py"]
+    order += sorted(p.relative_to(KIT).as_posix()
+                    for p in (KIT / "scripts" / "hooks").glob("*")
+                    if p.is_file() and "__pycache__" not in p.parts)
     return order
 
 
@@ -40,6 +46,11 @@ def build():
 
 
 def main(argv):
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     out = Path(argv[1]) if len(argv) > 1 else KIT / "dist" / "Unity_Workflow_Agent_Generator_bundle.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(build(), encoding="utf-8")

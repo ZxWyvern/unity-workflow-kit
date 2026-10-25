@@ -1,21 +1,145 @@
 #!/usr/bin/env python3
-"""Validate a generated Unity AI workflow pack (generator v1.3.0).
+"""Validate a generated Unity AI workflow pack (generator v1.4.0).
 
 Usage:
-    python validate_pack.py <repo_root> [pack_dir]
+    python validate_pack.py <repo_root> [pack_dir] [--compile]
 
 pack_dir is relative to repo_root and defaults to docs/ai-workflow.
 Checks mechanical consistency only. It cannot prove that claims are true,
-but it does check that cited paths and symbols exist.
+but it does check that cited paths and symbols exist, that Assets/ has .meta
+files with unique GUIDs, that documented project paths exist, and that a
+sharded session store is present. --compile additionally runs a filtered
+dotnet build through verify_compile.py.
 Exit code: 0 = no errors, 1 = errors, 2 = usage.
 """
+import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import packlib as P  # noqa: E402
+
+SERIALIZED_SUFFIXES = {".unity", ".prefab", ".asset", ".mat", ".controller",
+                       ".overrideController", ".anim", ".playable"}
+DOC_PATH = re.compile(r"(?<![\w./-])((?:Assets|Packages|ProjectSettings)/"
+                      r"[A-Za-z0-9_.\-/]+\.[A-Za-z0-9]+)")
+GUID_LINE = re.compile(r"^guid:\s*([0-9a-fA-F]{32})\s*$", re.M)
+GUID_REF = re.compile(r"m_Script:\s*\{[^}]*guid:\s*([0-9a-fA-F]{32})")
+IGNORED_ASSET = re.compile(r"^\.|~$")
+
+
+def _ignored_asset(name):
+    return bool(IGNORED_ASSET.search(name))
+
+
+def check_sessions(texts, err, warn):
+    names = P.session_names(texts)
+    legacy = P.LEGACY_HANDOFF in texts
+    if not names and not legacy:
+        err.append("missing session state: add sessions/<branch-slug>__<actor-slug>.md "
+                   "(legacy session-handoff.md is accepted but deprecated)")
+        return
+    if legacy:
+        warn.append("session-handoff.md is deprecated; migrate it to "
+                    "sessions/<branch-slug>__<actor-slug>.md")
+    for name in names:
+        if name.count("/") != 1:
+            err.append(f"{name}: session files must live directly under sessions/")
+        base = name.rsplit("/", 1)[-1]
+        if not P.SESSION_NAME.fullmatch(base):
+            err.append(f"{name}: session filename must be <branch-slug>__<actor>.md")
+        for problem in P.session_problems(texts[name]):
+            err.append(f"{name}: {problem}")
+        if re.search(r"\b(passed|failed)\b", texts[name], re.I):
+            warn.append(f"{name}: mentions passed/failed; outcomes belong only in the matrix")
+
+
+def check_assets(root, err, warn):
+    assets = Path(root) / "Assets"
+    if not assets.is_dir():
+        return
+    guids, meta_count = {}, 0
+    for base, dirs, files in os.walk(assets):
+        base_path = Path(base)
+        dirs[:] = sorted(d for d in dirs if not _ignored_asset(d))
+        for d in dirs:
+            path = base_path / d
+            if not Path(str(path) + ".meta").is_file():
+                err.append(f"Assets: missing .meta for folder: "
+                           f"{path.relative_to(Path(root)).as_posix()}")
+        for f in sorted(files):
+            if _ignored_asset(f) or f.endswith(".meta"):
+                continue
+            path = base_path / f
+            if not Path(str(path) + ".meta").is_file():
+                err.append(f"Assets: missing .meta for file: "
+                           f"{path.relative_to(Path(root)).as_posix()}")
+    for meta in sorted(assets.rglob("*.meta")):
+        if any(_ignored_asset(part) for part in meta.relative_to(assets).parts):
+            continue
+        meta_count += 1
+        rel = meta.relative_to(Path(root)).as_posix()
+        target = Path(str(meta)[:-5])
+        if not target.exists():
+            warn.append(f"{rel}: orphan .meta without an asset")
+        try:
+            text = meta.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            err.append(f"{rel}: cannot read .meta: {exc}")
+            continue
+        match = GUID_LINE.search(text)
+        if not match:
+            err.append(f"{rel}: missing a valid 32-character guid")
+            continue
+        guid = match.group(1).lower()
+        if guid in guids:
+            err.append(f"duplicate GUID {guid}: {guids[guid]} and {rel}")
+        else:
+            guids[guid] = rel
+    if meta_count == 0:
+        err.append("Assets: no .meta files found; commit Unity meta files")
+        return
+    known = set(guids)
+    for base, dirs, files in os.walk(assets):
+        dirs[:] = sorted(d for d in dirs if not _ignored_asset(d))
+        for f in sorted(files):
+            path = Path(base) / f
+            if path.suffix not in SERIALIZED_SUFFIXES or _ignored_asset(f):
+                continue
+            try:
+                text = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            rel = path.relative_to(Path(root)).as_posix()
+            for match in GUID_REF.finditer(text):
+                guid = match.group(1).lower()
+                if guid.startswith("0000000000000000") or guid in known:
+                    continue
+                warn.append(f"{rel}: script GUID {guid[:8]}... has no .meta under Assets "
+                            "(may be a package or built-in script)")
+
+
+def check_doc_paths(root, texts, err, warn):
+    root = Path(root)
+    for name, text in texts.items():
+        if name.endswith(".json"):
+            continue
+        scan = P.scan_text(name, text)
+        for number, line in enumerate(scan.splitlines(), 1):
+            if re.search(r"\[(?:C|P|F|V|R|I)-\d{3}", line):
+                continue
+            low = line.lower()
+            if "not inspected" in low or "proposed" in low or "http://" in low or "https://" in low:
+                continue
+            tokens = DOC_PATH.findall(line)
+            for token in tokens:
+                if any(ch in token for ch in "*?<>") or token.endswith((".md", ".json")) and token.startswith("docs/"):
+                    continue
+                if not (root / token).exists():
+                    warn.append(f"{name}:{number}: documented path not found: {token}")
 
 
 def check_index(index, root, defs, profile, err, warn):
@@ -127,20 +251,36 @@ def check_index(index, root, defs, profile, err, warn):
                 err.append(f"index.json task_routes {rid}: check {vid} is not defined")
 
     listed = {d["path"].split("/")[-1] for d in docs if isinstance(d.get("path"), str)}
-    needed = ["agent.md", "project-context.md", "validation-matrix.md", "session-handoff.md"]
+    needed = ["agent.md", "project-context.md", "validation-matrix.md"]
     if profile in ("standard", "extended"):
         needed += ["README.md", "development-workflow.md"]
     for n in needed:
         if n not in listed:
             warn.append(f"index.json documents does not list {n}")
+    if "sessions" not in listed and "session-handoff.md" not in listed:
+        warn.append("index.json documents does not list the session store "
+                    "(sessions/ or legacy session-handoff.md)")
 
 
 def main(argv):
-    if len(argv) < 2:
-        print(__doc__)
-        return 2
-    root = Path(argv[1]).resolve()
-    pack = (root / argv[2]).resolve() if len(argv) > 2 else root / "docs" / "ai-workflow"
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+    ap = argparse.ArgumentParser(description="Validate a generated Unity AI workflow pack")
+    ap.add_argument("root")
+    ap.add_argument("pack", nargs="?", default="docs/ai-workflow")
+    ap.add_argument("--compile", action="store_true",
+                    help="also run a filtered dotnet build (verify_compile.py)")
+    args = ap.parse_args(argv[1:])
+    root = Path(args.root).resolve()
+    pack = (root / args.pack).resolve()
+    try:
+        pack.relative_to(root)
+    except ValueError:
+        print(f"pack directory must be inside the repository: {pack}", file=sys.stderr)
+        return 1
     err, warn = [], []
     texts = P.read_pack(root, pack)
 
@@ -160,12 +300,13 @@ def main(argv):
         if profile not in P.PROFILES:
             err.append(f"index.json profile must be one of {sorted(P.PROFILES)}")
 
-    required = ["agent.md", "project-context.md", "validation-matrix.md", "session-handoff.md"]
+    required = ["agent.md", "project-context.md", "validation-matrix.md"]
     if profile in ("standard", "extended"):
         required += ["README.md", "development-workflow.md"]
     for n in required:
         if n not in texts:
             err.append(f"missing required file: {n} (profile '{profile}')")
+    check_sessions(texts, err, warn)
 
     for name, text in texts.items():
         if "REPLACE_ME" in text:
@@ -344,16 +485,29 @@ def main(argv):
         if stat in ("passed", "failed") and obs in ("", "none", "n/a", "none yet", "-"):
             err.append(f"check {vid}: Status '{stat}' requires an observed result and evidence location")
 
-    # ---- handoff -----------------------------------------------------------
-    ho = texts.get("session-handoff.md", "")
-    if "see validation matrix" not in ho.lower():
-        err.append("session-handoff.md must say 'see validation matrix' instead of restating outcomes")
-    elif re.search(r"\b(passed|failed)\b", ho, re.I):
-        warn.append("session-handoff.md mentions passed/failed; outcomes belong only in the matrix")
+    # ---- Unity assets, GUIDs, and documented project paths -----------------
+    check_assets(root, err, warn)
+    check_doc_paths(root, texts, err, warn)
 
     # ---- index -------------------------------------------------------------
     if isinstance(index, dict):
         check_index(index, root, defs, profile, err, warn)
+
+    # ---- optional compiler bridge -----------------------------------------
+    compile_result = None
+    if args.compile:
+        try:
+            import verify_compile as V
+        except ImportError as exc:
+            err.append(f"--compile unavailable: {exc}")
+        else:
+            compile_result = V.run_compile(root)
+            for line in V.summarize(compile_result):
+                print(line)
+            if compile_result["status"] == "failed":
+                err.append(f"C# compilation failed ({len(compile_result['errors'])} errors)")
+            elif compile_result["status"] in ("no_project", "dotnet_missing", "error"):
+                warn.append(f"C# compilation not verified: {compile_result['status']}")
 
     for w in warn:
         print(f"WARN  {w}")

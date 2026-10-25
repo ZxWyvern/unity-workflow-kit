@@ -1,4 +1,4 @@
-# Session handoff (fixture)
+# Session main__fixture
 
 Date and source snapshot: 2026-09-24, fixture snapshot without version control
 User goal and authorized scope: generate workflow pack only; no game implementation changed

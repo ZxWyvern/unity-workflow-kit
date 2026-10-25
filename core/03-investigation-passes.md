@@ -2,6 +2,13 @@
 
 Prefer targeted search (`rg` or host equivalent) to directory dumps. Batch independent reads; sequence dependent decisions and writes.
 
+When a pack tool exists, start source inspection with `context.py --file` instead of reading the raw file:
+
+- C# prints a skeleton: `using`, namespace/types, attributes, serialized/public fields, signatures, and XML docs; bodies are omitted. Add `--method <name>` only for the implementation you actually need.
+- `.unity` and `.prefab` print a compact GameObject/Transform/MonoBehaviour hierarchy with script names and authored values; raw Unity YAML is not loaded.
+
+Skeletons and condensed hierarchies are navigation. Read the canonical source or open the editor before making a claim that depends on a body, serialization detail, or runtime behavior.
+
 ## Pass A — Workspace, instructions, and preserved work
 
 - Read root and relevant nested instruction files fully before working in their scope.

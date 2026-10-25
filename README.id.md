@@ -10,7 +10,7 @@ Beri coding agent panduan kecil yang spesifik untuk proyek Unity Anda: mulai dar
 
 [English](README.md) · [Panduan lengkap](docs/USAGE.md) · [Kontribusi](CONTRIBUTING.md)
 
-**v1.3.0 beta.** Tool Python lokal sudah diuji. Kualitas generasi dan biaya token lintas proyek serta host AI masih membutuhkan laporan penggunaan nyata. Tidak berafiliasi dengan Unity Technologies.
+**v1.4.0 beta.** Tool Python lokal sudah diuji. Kualitas generasi dan biaya token lintas proyek serta host AI masih membutuhkan laporan penggunaan nyata. Tidak berafiliasi dengan Unity Technologies.
 
 ## Mulai dengan satu prompt
 
@@ -34,6 +34,8 @@ Helper memakai Python 3.9+ dan standard library, tanpa dependensi tambahan. Kala
 - Mulai dari maksimal 2 subsistem, 1 alur menyeluruh, 3 temuan, 3 route, dan 1 langkah berikutnya. Perluas jika dependensi nyata membutuhkan pemeriksaan.
 - Targetkan instruksi startup sekitar 20 baris dan `agent.md` sekitar 80 baris.
 - Ambil route, dependensi bukti, check, dan area terlindungi melalui `context.py`. Seluruh pack tidak perlu masuk ke konteks model.
+- Inspeksi C# sebagai skeleton (signature, field serialized/public, dokumen XML) dan `.unity`/`.prefab` sebagai hierarki ringkas; minta isi satu method hanya saat perlu.
+- Simpan state sesi per branch dan actor di `sessions/<branch-slug>__<actor-slug>.md` agar developer dan agent paralel tidak saling menimpa.
 - Refresh klaim yang terdampak perubahan; biarkan isi lain tetap.
 
 Ini mekanisme pembatas konteks, bukan jaminan persentase penghematan token. Biaya aktual bergantung pada agent, tugas, dan proyek. Instruksi yang berlaku serta verifikasi yang diperlukan tetap harus dibaca dan dijalankan sesuai izin.
@@ -47,9 +49,9 @@ docs/ai-workflow/
   agent.md                      prosedur, route tugas, langkah berikutnya
   project-context.md            klaim, area terlindungi, temuan, cakupan
   validation-matrix.md          check dan hasilnya
-  session-handoff.md            pekerjaan saat ini dan langkah selanjutnya
-  index.json                    navigasi
-  tools/                        empat helper Python kecil
+  sessions/                     satu handoff per branch dan actor
+  index.json                    navigasi hasil generate (jangan diedit manual)
+  tools/                        helper Python kecil, termasuk MCP/compile
 ```
 
 Standard menambahkan README dan file workflow terpisah jika diperlukan. Extended menambahkan kontrak khusus yang relevan. Bagian tertentu dari repositori besar tetap bisa memakai Compact.
@@ -68,6 +70,8 @@ Agent dapat memilih konteks melalui:
 ```bash
 python docs/ai-workflow/tools/context.py .
 python docs/ai-workflow/tools/context.py . --route R-001
+python docs/ai-workflow/tools/context.py . --file Assets/Scripts/Game/Health.cs
+python docs/ai-workflow/tools/context.py . --file Assets/Scenes/Dev.unity
 ```
 
 Gunakan ID dari pack Anda. Ulangi `--route` jika tugas mencakup beberapa route. Batas keluaran default adalah 16.000 karakter; jika terlalu besar, tool berhenti dengan penjelasan, tanpa memotong bukti diam-diam. Baca blok aslinya atau naikkan `--max-chars` jika diperlukan.
@@ -95,13 +99,20 @@ Setelah merge atau perubahan besar:
 Baca _ai-generator/ENTRYPOINT.md dan refresh workflow pack yang sudah ada.
 ```
 
+Untuk kerja paralel, setiap developer/agent memiliki `sessions/<branch-slug>__<actor-slug>.md`. Pasang Git hook sekali per clone untuk refresh index/bundle, validasi sebelum commit, dan konfigurasi `merge=ours`:
+
+```bash
+python _ai-generator/tools/install_hooks.py .
+```
+
 Untuk CI tim:
 
 ```bash
 python docs/ai-workflow/tools/validate_pack.py . docs/ai-workflow
+python docs/ai-workflow/tools/verify_compile.py . --project MyGame.sln
 ```
 
-Validator memeriksa struktur dan konsistensi, bukan membuktikan gameplay benar. Refresh Git mencakup file baru yang belum di-track dan tidak di-ignore. Snapshot dirty serta perubahan environment tetap perlu diperiksa eksplisit.
+Validator memeriksa struktur, integritas `.meta`/GUID, sesi, dan path terdokumentasi; `verify_compile` menambah sinyal `dotnet build` terfilter. Keduanya tidak membuktikan gameplay benar. Refresh Git mencakup file baru yang belum di-track, tidak di-ignore, dan referensi tipe yang berubah. Snapshot dirty serta perubahan environment tetap perlu diperiksa eksplisit. Host dengan MCP dapat memakai `tools/mcp_server.py`.
 
 ## Pengembangan kit
 

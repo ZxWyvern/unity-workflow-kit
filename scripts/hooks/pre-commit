@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+# UWK_HOOK managed by unity-workflow-kit tools/install_hooks.py
+"""Refresh the bundle/session index and validate the pack before committing."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import uwk_hooks_common as C
+
+BUNDLE_PATHS = ("ENTRYPOINT.md", "core/", "templates/", "hosts/", "tools/", "scripts/hooks/")
+
+
+def main():
+    C.configure_stdio()
+    repo = C.repo_root(Path.cwd())
+    kit = C.find_kit(repo)
+    files = C.staged(repo)
+    if not files:
+        return 0
+
+    needs_bundle = kit and any(f == "ENTRYPOINT.md" or f.startswith(BUNDLE_PATHS[1:])
+                               for f in files)
+    output = kit / "dist/Unity_Workflow_Agent_Generator_bundle.md" if kit else None
+    if needs_bundle and output is not None:
+        try:
+            output.resolve().relative_to(repo)
+            inside = True
+        except ValueError:
+            inside = False
+    else:
+        inside = False
+    if needs_bundle and output is not None and not inside:
+        print("pre-commit: bundle lives outside the repository; rebuild skipped", file=sys.stderr)
+    elif needs_bundle and C.is_ignored(repo, output):
+        print("pre-commit: bundle output is ignored; bundle rebuild skipped", file=sys.stderr)
+    elif needs_bundle:
+        result = C.run_python(kit / "tools/bundle.py")
+        C.emit(result)
+        if result.returncode != 0:
+            print("pre-commit: bundle rebuild failed; commit blocked", file=sys.stderr)
+            return 1
+        if output.exists():
+            try:
+                rel = output.resolve().relative_to(repo)
+            except ValueError:
+                rel = None
+            if rel is not None:
+                run = C.git(repo, "add", "--", rel.as_posix())
+                if run.returncode != 0:
+                    C.emit(run)
+                    return 1
+
+    pack = C.pack_dir(repo)
+    if pack:
+        packlib = C.find_tool(repo, kit, "packlib.py")
+        if packlib:
+            result = C.run_python(packlib, "index", repo, "--pack", pack)
+            C.emit(result)
+            if result.returncode != 0:
+                print("pre-commit: index refresh failed; commit blocked", file=sys.stderr)
+                return 1
+            index_file = pack / "index.json"
+            if not C.is_ignored(repo, index_file):
+                run = C.git(repo, "add", "--", index_file.relative_to(repo).as_posix())
+                if run.returncode != 0:
+                    C.emit(run)
+                    return 1
+        validate = C.find_tool(repo, kit, "validate_pack.py")
+        if validate:
+            result = C.run_python(validate, repo, pack)
+            C.emit(result)
+            if result.returncode != 0:
+                print("pre-commit: pack validation failed; commit blocked", file=sys.stderr)
+                return 1
+        else:
+            print("pre-commit: validate_pack.py not found; validation skipped", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

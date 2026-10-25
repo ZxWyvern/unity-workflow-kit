@@ -81,7 +81,7 @@ Use the project's existing supported runners and build entry points. Before pres
 Choose the smallest meaningful set:
 
 - diff, reference, serialized-identity, and assembly-boundary integrity;
-- compilation/import (a textual C# review or an external compiler is not equivalent to Unity compilation);
+- compilation/import (a textual C# review or an external compiler is not equivalent to Unity compilation; `tools/verify_compile.py` gives a fast filtered `dotnet build` signal, not a Unity import);
 - affected tests and behavior-focused regression tests for changed logic;
 - real input/scene/tool interaction for integration claims;
 - lifecycle, failure, restore, network, or platform cases raised by the change;
@@ -97,10 +97,26 @@ Rules:
 
 ## 8. Finish with evidence
 
-Review final diff; refresh affected claims; update handoff. Report separately:
+Review final diff; refresh affected claims; update this actor's session file. Report separately:
 
 - source implemented;
 - serialized references checked;
 - scene/tool behavior verified;
 - target player/build verified;
 - pending checks and consequences.
+
+## 9. Parallel work and session state
+
+Sessions are sharded, one file per branch and actor:
+
+```text
+<session_dir>/<branch-slug>__<actor>.md
+```
+
+The branch slug replaces `/` and unsafe characters with `-`; the actor is the developer or agent identity. The active branch's file is current state. Other branches are read as headers only unless the user asks for them.
+
+- Never create or rewrite a branch-wide `session-handoff.md`.
+- Replace stale content in your own file; do not append an unbounded history.
+- Record the next executable action and its acceptance check so another actor can resume.
+- Regenerate `index.json` with `packlib.py index` after structural document changes; never hand-edit it.
+- When two actors touch the same pack, leave the other actor's session file alone.

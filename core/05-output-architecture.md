@@ -11,7 +11,7 @@ Every category has one authoritative home. Other files reference IDs instead of 
 | provenance, stack, claims, subsystem map, findings, protected areas (`P-###`), **not-inspected list** | `project-context.md` |
 | task routes, operating loop, increments | `development-workflow.md`; in Compact, `agent.md` |
 | validation check definitions **and statuses** | `validation-matrix.md` |
-| current session state and next action | `session-handoff.md` (it points to the not-inspected list, never copies it) |
+| current session state and next action | `sessions/<branch-slug>__<actor-slug>.md` (one writer per file; it points to the not-inspected list, never copies it) |
 | navigation paths, entry points, routes | `index.json` |
 | startup rules | root `AGENTS.md` (between markers) or verified host-native entry |
 | portable agent role and behavior | `agent.md` |
@@ -22,7 +22,7 @@ Other files cite IDs (`C-###`, `F-###`, `V-###`, `R-###`, `I-###`, `P-###`) and 
 
 Pass/fail/not-run/not-applicable status exists **only** in `validation-matrix.md`.
 
-`session-handoff.md` may list check IDs run this session and must say “see validation matrix”; it may not duplicate the outcomes.
+A session file may list check IDs run this session and must say “see validation matrix”; it may not duplicate the outcomes. The legacy shared `session-handoff.md` is read-only and deprecated.
 
 `index.json` contains no status/result/pass/fail fields.
 
